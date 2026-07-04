@@ -7,10 +7,10 @@ from typing import Annotated
 from uuid import UUID
 
 from annotated_types import Ge, Le
-from httpx2 import AsyncClient, Client
+from httpx2 import Client
 
 from eve_auth_manager.helpers.http_session_factory import (
-    config_async_http_client,
+    async_client_manager,
     config_http_client,
 )
 from eve_auth_manager.models import (
@@ -35,9 +35,8 @@ class SqliteAuthManager(AuthManagerProtocol):
         self._db_path: Path = Path(db_path)
         self._sqlite_connection: sqlite3.Connection | None = None
         self._session: Client | None = None
-        self._async_session: AsyncClient | None = None
 
-    async def __aenter__(self) -> SqliteAuthManager:
+    def __enter__(self) -> SqliteAuthManager:
         """Enter the async context manager.
 
         Opens a read/write SQLite connection and configures both sync and async
@@ -48,10 +47,9 @@ class SqliteAuthManager(AuthManagerProtocol):
         """
         self._sqlite_connection = create_read_write_connection(self._db_path)
         self._session = config_http_client()
-        self._async_session = await config_async_http_client()
         return self
 
-    async def __aexit__(
+    def __exit__(
         self,
         exc_type: type[BaseException] | None,
         exc_value: BaseException | None,
@@ -70,8 +68,6 @@ class SqliteAuthManager(AuthManagerProtocol):
             self._sqlite_connection.close()
         if self._session:
             self._session.close()
-        if self._async_session:
-            await self._async_session.aclose()
 
     def get_credentials(self, cred_id: UUID) -> AuthCredentials:
         """Get the credentials for the given ID.
@@ -113,7 +109,7 @@ class SqliteAuthManager(AuthManagerProtocol):
             "SqliteAuthManager.add_credentials is not implemented"
         )
 
-    async def remove_credentials(
+    def remove_credentials(
         self,
         cred_id: UUID,
     ) -> dict[UUID, str]:
@@ -193,7 +189,7 @@ class SqliteAuthManager(AuthManagerProtocol):
             "SqliteAuthManager.revoke_character is not implemented"
         )
 
-    async def revoke_characters(
+    def revoke_characters(
         self, cred_id: UUID, character_ids: set[int] | None = None
     ) -> dict[int, str]:
         """Revoke the authenticated characters for the given character IDs.
@@ -279,7 +275,7 @@ class SqliteAuthManager(AuthManagerProtocol):
             "SqliteAuthManager.refresh_character is not implemented"
         )
 
-    async def refresh_characters(
+    def refresh_characters(
         self,
         cred_id: UUID,
         character_ids: set[int] | None = None,
@@ -326,3 +322,16 @@ class SqliteAuthManager(AuthManagerProtocol):
         raise NotImplementedError(
             "SqliteAuthManager.refresh_oauth_metadata is not implemented"
         )
+
+    @property
+    def session(self) -> Client:
+        """Get the synchronous HTTP client session.
+
+        Returns:
+            The configured Client instance.
+        """
+        if self._session is None:
+            raise RuntimeError(
+                "HTTP client session is not initialized. Use the context manager."
+            )
+        return self._session

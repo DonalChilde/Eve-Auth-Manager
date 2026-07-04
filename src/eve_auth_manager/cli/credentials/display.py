@@ -1,8 +1,7 @@
 """Command to display information about the currently stored credentials as markdown."""
 
-import asyncio
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Annotated
 from uuid import UUID
@@ -30,12 +29,34 @@ class CredentialDetails:
     authorized_character_count: int
 
 
+def _format_markdown_table_value(value: object) -> str:
+    """Return a table-safe markdown representation of a value."""
+    match value:
+        case list() as values:
+            if not values:
+                return "-"
+            return ", ".join(str(item) for item in values)
+        case _:
+            text = str(value)
+            if not text:
+                return "-"
+            return text.replace("|", r"\|").replace("\n", "<br>")
+
+
 def detailed_display(credential_details: CredentialDetails) -> str:
     """Return a detailed display of the credentials as markdown."""
-    report_lines: list[str] = []
-    # report generation code here.
-    raise NotImplementedError(
-        "Detailed display for credentials is not implemented yet."
+    report_lines = ["# Credential Details", "", "| Field | Value |", "| --- | --- |"]
+    credentials = credential_details.auth_credentials
+
+    for field_info in fields(credentials):
+        value = getattr(credentials, field_info.name)
+        report_lines.append(
+            f"| {field_info.name} | {_format_markdown_table_value(value)} |"
+        )
+
+    report_lines.append(
+        "| authorized_character_count "
+        f"| {credential_details.authorized_character_count} |"
     )
     report_string = "\n".join(report_lines)
     return mdformat_text(report_string, extensions=["tables"])
@@ -45,9 +66,22 @@ def display_credientials_summary(
     credential_details: Iterable[CredentialDetails],
 ) -> str:
     """Return a summary display of the credentials as markdown."""
-    report_lines: list[str] = []
-    # report generation code here.
-    raise NotImplementedError("Summary display for credentials is not implemented yet.")
+    report_lines = [
+        "# Credentials Summary",
+        "",
+        "| cred_id | name | description | authorized_character_count |",
+        "| --- | --- | --- | --- |",
+    ]
+    for details in credential_details:
+        credentials = details.auth_credentials
+        report_lines.append(
+            "| "
+            f"{credentials.cred_id} | "
+            f"{_format_markdown_table_value(credentials.name)} | "
+            f"{_format_markdown_table_value(credentials.description)} | "
+            f"{details.authorized_character_count} |"
+        )
+
     report_string = "\n".join(report_lines)
     return mdformat_text(report_string, extensions=["tables"])
 
@@ -100,7 +134,8 @@ def display(
         messenger = Console(stderr=True)
     stdout = Console()
     settings = get_auth_manager_settings_from_context(ctx)
-    credentials = asyncio.run(_get_credentials_details(settings.auth_db_path, cred_id))
+
+    credentials = _get_credentials_details(settings.auth_db_path, cred_id)
     if isinstance(credentials, list):
         if not credentials:
             messenger.print("[yellow]No credentials found in the database.[/yellow]")
@@ -123,10 +158,10 @@ def display(
         messenger.print(f"Output written to {output_path}")
 
 
-async def _get_credentials_details(
+def _get_credentials_details(
     db_path: Path, cred_id: UUID | None
 ) -> CredentialDetails | list[CredentialDetails]:
-    async with SqliteAuthManager(db_path) as auth_manager:
+    with SqliteAuthManager(db_path) as auth_manager:
         if cred_id is not None:
             credentials = auth_manager.get_credentials(cred_id)
             credential_details = CredentialDetails(

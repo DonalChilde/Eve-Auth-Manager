@@ -10,7 +10,6 @@ the "esi-auth-manager-settings" key.
 
 """
 
-import asyncio
 import logging
 from dataclasses import asdict
 
@@ -19,7 +18,6 @@ import typer
 from eve_auth_manager import __app_name__, __version__
 from eve_auth_manager.cli.characters import app as characters_app
 from eve_auth_manager.cli.credentials import app as credentials_app
-from eve_auth_manager.cli.helpers import config_async_http_client, config_http_client
 from eve_auth_manager.logging_config import setup_logging
 from eve_auth_manager.settings import get_settings
 
@@ -32,11 +30,6 @@ def default_options(ctx: typer.Context):
     Insert pithy saying here
     """
     settings = get_settings()
-    # Configure HTTP clients if not already set
-    if settings.client_session is None:
-        settings.client_session = config_http_client()
-    if settings.async_client_session is None:
-        settings.async_client_session = asyncio.run(config_async_http_client())
     setup_logging(log_dir=settings.logging_directory)
     ctx.obj = {"eve-auth-manager-settings": settings}
     logger.info(

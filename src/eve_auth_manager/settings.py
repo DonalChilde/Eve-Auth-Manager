@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from httpx2 import AsyncClient, Client
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typer import get_app_dir
 
@@ -17,8 +16,6 @@ USER_AGENT = f"{__app_name__} ({__version__}) (+{__url__}) auth_manager stand al
 class EveAuthManagerSettings:
     auth_db_path: Path
     logging_directory: Path
-    client_session: Client | None = None
-    async_client_session: AsyncClient | None = None
 
 
 class EveAuthManagerSettingsPydantic(BaseSettings):

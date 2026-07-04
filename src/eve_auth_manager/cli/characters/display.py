@@ -1,7 +1,7 @@
 """Command to display information about the currently stored credentials as markdown."""
 
-import asyncio
 from collections.abc import Iterable
+from dataclasses import fields
 from pathlib import Path
 from typing import Annotated
 from uuid import UUID
@@ -19,11 +19,29 @@ from eve_auth_manager.sqlite.manager import SqliteAuthManager
 app = typer.Typer(no_args_is_help=True, help="Display the currently stored characters.")
 
 
+def _format_markdown_table_value(value: object) -> str:
+    """Return a table-safe markdown representation of a value."""
+    text = str(value)
+    if not text:
+        return "-"
+    return text.replace("|", r"\|").replace("\n", "<br>")
+
+
+def _character_expires_in(character: AuthorizedCharacter) -> int:
+    """Return the number of seconds until the character token expires."""
+    return character.expires_in
+
+
 def detailed_display(character: AuthorizedCharacter) -> str:
     """Return a detailed display of the character as markdown."""
-    report_lines: list[str] = []
-    # report generation code here.
-    raise NotImplementedError("Detailed display for character is not implemented yet.")
+    report_lines = ["# Character Details", "", "| Field | Value |", "| --- | --- |"]
+    for field_info in fields(character):
+        value = getattr(character, field_info.name)
+        report_lines.append(
+            f"| {field_info.name} | {_format_markdown_table_value(value)} |"
+        )
+
+    report_lines.append(f"| expires_in | {_character_expires_in(character)} |")
     report_string = "\n".join(report_lines)
     return mdformat_text(report_string, extensions=["tables"])
 
@@ -32,9 +50,21 @@ def display_characters_summary(
     characters: Iterable[AuthorizedCharacter],
 ) -> str:
     """Return a summary display of the characters as markdown."""
-    report_lines: list[str] = []
-    # report generation code here.
-    raise NotImplementedError("Summary display for characters is not implemented yet.")
+    report_lines = [
+        "# Characters Summary",
+        "",
+        "| character_id | character_name | cred_id | expires_in |",
+        "| --- | --- | --- | --- |",
+    ]
+    for character in characters:
+        report_lines.append(
+            "| "
+            f"{character.character_id} | "
+            f"{_format_markdown_table_value(character.character_name)} | "
+            f"{character.cred_id} | "
+            f"{_character_expires_in(character)} |"
+        )
+
     report_string = "\n".join(report_lines)
     return mdformat_text(report_string, extensions=["tables"])
 
@@ -93,54 +123,26 @@ def display(
         messenger = Console(stderr=True)
     stdout = Console()
     settings = get_auth_manager_settings_from_context(ctx)
-    characters = asyncio.run(
-        _get_characters(settings.auth_db_path, cred_id, character_id)
-    )
-    if isinstance(characters, list):
-        if not characters:
-            messenger.print("[yellow]No characters found in the database.[/yellow]")
-            raise typer.Exit(0)
-        output = display_characters_summary(characters)
-    else:
-        output = detailed_display(characters)
-
-    if not file_path:
-        if plain:
-            stdout.print(output)
-        else:
-            stdout.print(Markdown(output))
-    else:
-        output_path = save_text_file(
-            text=output,
-            output_directory=file_path.parent,
-            file_name=file_path.name,
-            overwrite=overwrite,
-        )
-        messenger.print(f"Output saved to {output_path}")
-
-
-async def _get_characters(
-    db_path: Path, cred_id: UUID, character_id: int | None
-) -> AuthorizedCharacter | list[AuthorizedCharacter]:
-    """Get the character(s) from the auth manager.
-
-    Args:
-        db_path: Path to the SQLite database file.
-        cred_id: The ID of the credentials to use for retrieving characters.
-        character_id: The ID of the character to retrieve. If None, retrieves all
-            characters for the given credentials.
-
-    Returns:
-        An AuthorizedCharacter object if a specific character ID is provided,
-        otherwise a list of AuthorizedCharacter objects.
-
-    Raises:
-        CredentialsNotFoundError: If the credentials with the given ID are not found.
-    """
-    async with SqliteAuthManager(db_path) as auth_manager:
+    with SqliteAuthManager(settings.auth_db_path) as auth_manager:
         if character_id is not None:
             character = auth_manager.get_character(cred_id, character_id)
-            return character
+            output = detailed_display(character)
         else:
-            all_characters = auth_manager.get_all_characters(cred_id)
-            return all_characters
+            characters = auth_manager.get_all_characters(cred_id)
+            if not characters:
+                messenger.print("[yellow]No characters found in the database.[/yellow]")
+                raise typer.Exit(0)
+            output = display_characters_summary(characters)
+        if not file_path:
+            if plain:
+                stdout.print(output)
+            else:
+                stdout.print(Markdown(output))
+        else:
+            output_path = save_text_file(
+                text=output,
+                output_directory=file_path.parent,
+                file_name=file_path.name,
+                overwrite=overwrite,
+            )
+            messenger.print(f"Output saved to {output_path}")

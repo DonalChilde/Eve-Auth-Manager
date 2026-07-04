@@ -75,7 +75,7 @@ class AuthManagerProtocol(Protocol):
         """
         ...
 
-    async def remove_credentials(self, cred_id: UUID) -> dict[UUID, str]:
+    def remove_credentials(self, cred_id: UUID) -> dict[UUID, str]:
         """Remove the credentials for the given ID.
 
         Also revokes all associated character tokens.
@@ -142,7 +142,7 @@ class AuthManagerProtocol(Protocol):
         """
         ...
 
-    async def revoke_characters(
+    def revoke_characters(
         self, cred_id: UUID, character_ids: set[int] | None = None
     ) -> dict[int, str]:
         """Revoke all authenticated characters for the given credentials ID.
@@ -213,7 +213,7 @@ class AuthManagerProtocol(Protocol):
         """
         ...
 
-    async def refresh_characters(
+    def refresh_characters(
         self,
         cred_id: UUID,
         character_ids: set[int] | None = None,
