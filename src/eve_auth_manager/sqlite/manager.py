@@ -8,13 +8,13 @@ from uuid import UUID
 from annotated_types import Ge, Le
 from httpx2 import AsyncClient, Client
 
-from ..models import (
+from eve_auth_manager.models import (
     AuthCredentials,
     AuthorizedCharacter,
     EsiAppCredentials,
     OAuthMetadataTimestamped,
 )
-from ..protocols import AuthManagerProtocol
+from eve_auth_manager.protocols import AuthManagerProtocol
 
 
 class SqliteAuthManager(AuthManagerProtocol):
@@ -24,7 +24,7 @@ class SqliteAuthManager(AuthManagerProtocol):
         """Initialize the auth manager with the SQLite database path."""
         self.db_path: Path = Path(db_path)
 
-    def __enter__(self) -> "SqliteAuthManager":
+    def __enter__(self) -> SqliteAuthManager:
         """Enter the context manager."""
         raise NotImplementedError("SqliteAuthManager.__enter__ is not implemented")
 

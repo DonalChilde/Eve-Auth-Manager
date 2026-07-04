@@ -6,9 +6,12 @@ from typing import Annotated
 import typer
 from rich.console import Console
 
-from ...models import EsiAppCredentialsRoot
-from ...sqlite.manager import SqliteAuthManager
-from ..helpers import get_auth_manager_settings_from_context, get_stdin
+from eve_auth_manager.cli.helpers import (
+    get_auth_manager_settings_from_context,
+    get_stdin,
+)
+from eve_auth_manager.models import EsiAppCredentialsRoot
+from eve_auth_manager.sqlite.manager import SqliteAuthManager
 
 app = typer.Typer(
     no_args_is_help=True, name="credentials", help="Manage ESI app credentials."

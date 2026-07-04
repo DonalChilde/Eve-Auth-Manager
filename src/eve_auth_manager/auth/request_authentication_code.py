@@ -6,10 +6,10 @@ from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlencode, urlparse
 
-from .code_challenge import (
+from eve_auth_manager.auth.code_challenge import (
     generate_code_challenge_and_verifier,
 )
-from .secure_random_string import (
+from eve_auth_manager.auth.secure_random_string import (
     generate_secure_random_string,
 )
 

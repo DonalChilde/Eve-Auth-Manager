@@ -7,14 +7,14 @@ from uuid import UUID
 from httpx2 import AsyncClient, Client
 from jwt.jwks_client import PyJWKClient
 
-from .auth import oauth_tokens as oauth_helpers
-from .models import (
+from eve_auth_manager.auth import oauth_tokens as oauth_helpers
+from eve_auth_manager.models import (
     AuthorizedCharacter,
     OAuthMetadataTimestamped,
     OauthToken,
     ValidatedToken,
 )
-from .settings import AUDIENCE, USER_AGENT
+from eve_auth_manager.settings import AUDIENCE, USER_AGENT
 
 logger = logging.getLogger(__name__)
 

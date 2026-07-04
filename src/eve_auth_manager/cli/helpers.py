@@ -6,7 +6,7 @@ from typing import cast
 from httpx2 import AsyncClient, Client
 from typer import Context
 
-from ..settings import USER_AGENT, EveAuthManagerSettings
+from eve_auth_manager.settings import USER_AGENT, EveAuthManagerSettings
 
 
 def config_http_client(user_agent: str = USER_AGENT) -> Client:

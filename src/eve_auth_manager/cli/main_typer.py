@@ -16,12 +16,12 @@ from dataclasses import asdict
 
 import typer
 
-from .. import __app_name__, __version__
-from ..logging_config import setup_logging
-from ..settings import get_settings
-from .characters import app as characters_app
-from .credentials import app as credentials_app
-from .helpers import config_async_http_client, config_http_client
+from eve_auth_manager import __app_name__, __version__
+from eve_auth_manager.cli.characters import app as characters_app
+from eve_auth_manager.cli.credentials import app as credentials_app
+from eve_auth_manager.cli.helpers import config_async_http_client, config_http_client
+from eve_auth_manager.logging_config import setup_logging
+from eve_auth_manager.settings import get_settings
 
 logger = logging.getLogger(__name__)
 

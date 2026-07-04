@@ -7,7 +7,7 @@ from httpx2 import AsyncClient, Client
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typer import get_app_dir
 
-from . import __app_name__, __url__, __version__
+from eve_auth_manager import __app_name__, __url__, __version__
 
 AUDIENCE = "EVE Online"
 USER_AGENT = f"{__app_name__} ({__version__}) (+{__url__}) auth_manager stand alone"

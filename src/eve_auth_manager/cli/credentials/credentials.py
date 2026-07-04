@@ -6,13 +6,10 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.console import Console
-
 from esi_link.auth.models import EsiAppCredentialsRoot
 from esi_link.cli.helpers import get_esi_link_settings_from_context
 from esi_link.esi_link_api import EsiLink
-
-from ...protocols import AuthManagerProtocol
+from rich.console import Console
 
 app = typer.Typer(
     no_args_is_help=True, name="credentials", help="Manage ESI app credentials."

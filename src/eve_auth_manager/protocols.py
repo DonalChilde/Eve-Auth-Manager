@@ -6,7 +6,7 @@ from uuid import UUID
 from annotated_types import Ge, Le
 from httpx2 import AsyncClient, Client
 
-from .models import (
+from eve_auth_manager.models import (
     AuthCredentials,
     AuthorizedCharacter,
     EsiAppCredentials,

@@ -7,13 +7,13 @@ from uuid import UUID
 import typer
 from rich.console import Console
 
-from ...auth.request_authentication_code import (
+from eve_auth_manager.auth.request_authentication_code import (
     generate_request_params,
     start_web_server_and_listen_for_code,
 )
-from ...sqlite.manager import SqliteAuthManager
-from ...token_tool import TokenTool
-from ..helpers import get_auth_manager_settings_from_context
+from eve_auth_manager.cli.helpers import get_auth_manager_settings_from_context
+from eve_auth_manager.sqlite.manager import SqliteAuthManager
+from eve_auth_manager.token_tool import TokenTool
 
 app = typer.Typer(no_args_is_help=True)
 
