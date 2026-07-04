@@ -43,6 +43,12 @@ class SqliteAuthManager(AuthManagerProtocol):
             "SqliteAuthManager.get_credentials is not implemented"
         )
 
+    def get_all_credentials(self) -> list[AuthCredentials]:
+        """Get all stored credentials."""
+        raise NotImplementedError(
+            "SqliteAuthManager.get_all_credentials is not implemented"
+        )
+
     def add_credentials(self, credentials: EsiAppCredentials) -> UUID:
         """Add credentials and return the new credentials ID."""
         raise NotImplementedError(

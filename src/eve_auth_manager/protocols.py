@@ -21,6 +21,10 @@ class AuthManagerProtocol(Protocol):
         """Get the credentials for the given ID."""
         ...
 
+    def get_all_credentials(self) -> list[AuthCredentials]:
+        """Get all stored credentials."""
+        ...
+
     def add_credentials(self, credentials: EsiAppCredentials) -> UUID:
         """Save the given credentials and return their ID."""
         ...

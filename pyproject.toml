@@ -6,6 +6,8 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "httpx2>=2.5.0",
+    "mdformat>=1.0.0",
+    "mdformat-gfm>=1.0.0",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.2",
     "pyjwt[crypto]>=2.13.0",
