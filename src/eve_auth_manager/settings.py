@@ -14,14 +14,14 @@ USER_AGENT = f"{__app_name__} ({__version__}) (+{__url__}) auth_manager stand al
 
 
 @dataclass(slots=True, kw_only=True)
-class AuthManagerSettings:
+class EveAuthManagerSettings:
     auth_db_path: Path
     logging_directory: Path
     client_session: Client | None = None
     async_client_session: AsyncClient | None = None
 
 
-class AuthManagerSettingsPydantic(BaseSettings):
+class EveAuthManagerSettingsPydantic(BaseSettings):
     """Pydantic settings for the auth_manager package."""
 
     model_config = SettingsConfigDict(env_prefix="ESI_AUTH_MANAGER_")
@@ -34,21 +34,21 @@ class AuthManagerSettingsPydantic(BaseSettings):
 
 
 def get_settings(
-    pydantic_settings: AuthManagerSettingsPydantic | None = None,
-) -> AuthManagerSettings:
+    pydantic_settings: EveAuthManagerSettingsPydantic | None = None,
+) -> EveAuthManagerSettings:
     """Get the settings for the auth_manager package.
 
     Ways of initializing the settings:
     1. If the cli is run directly, The settings will be initiallized in the @app.callback,
     method and stored in the typer context.obj.
-    2. If the cli is imported into another cli, that cli will init the AuthManagerSettings
-    object either directly, or by working with an AuthManagerSettingsPydantic object,
+    2. If the cli is imported into another cli, that cli will init the EveAuthManagerSettings
+    object either directly, or by working with an EveAuthManagerSettingsPydantic object,
     and the settings obj will be stored in the typer context.obj.
     3. If this code is imported into another package, that package is responsible for
-    creating the AuthManagerSettings object.
+    creating the EveAuthManagerSettings object.
     """
-    pydantic_settings = pydantic_settings or AuthManagerSettingsPydantic()
-    return AuthManagerSettings(
+    pydantic_settings = pydantic_settings or EveAuthManagerSettingsPydantic()
+    return EveAuthManagerSettings(
         auth_db_path=pydantic_settings.auth_db_path,
         logging_directory=pydantic_settings.logging_directory,
     )

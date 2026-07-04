@@ -6,7 +6,7 @@ from typing import cast
 from httpx2 import AsyncClient, Client
 from typer import Context
 
-from ..settings import USER_AGENT, AuthManagerSettings
+from ..settings import USER_AGENT, EveAuthManagerSettings
 
 
 def config_http_client(user_agent: str = USER_AGENT) -> Client:
@@ -19,11 +19,11 @@ async def config_async_http_client(user_agent: str = USER_AGENT) -> AsyncClient:
     return AsyncClient(headers={"User-Agent": user_agent})
 
 
-def get_auth_manager_settings_from_context(ctx: Context) -> AuthManagerSettings:
+def get_auth_manager_settings_from_context(ctx: Context) -> EveAuthManagerSettings:
     """Helper function to get the auth_manager settings from the Typer context."""
-    if ctx.obj is None or "auth-manager-settings" not in ctx.obj:
+    if ctx.obj is None or "eve-auth-manager-settings" not in ctx.obj:
         raise ValueError("Auth Manager settings not found in context.")
-    return cast(AuthManagerSettings, ctx.obj["auth-manager-settings"])
+    return cast(EveAuthManagerSettings, ctx.obj["eve-auth-manager-settings"])
 
 
 def get_stdin() -> str:

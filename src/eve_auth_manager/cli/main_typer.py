@@ -38,7 +38,7 @@ def default_options(ctx: typer.Context):
     if settings.async_client_session is None:
         settings.async_client_session = asyncio.run(config_async_http_client())
     setup_logging(log_dir=settings.logging_directory)
-    ctx.obj = {"esi-auth-manager-settings": settings}
+    ctx.obj = {"eve-auth-manager-settings": settings}
     logger.info(
         f"Starting {__app_name__} v{__version__} with settings: {asdict(settings)!r}"
     )
