@@ -1,5 +1,6 @@
 """Command to display information about the currently stored credentials as markdown."""
 
+import asyncio
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -84,39 +85,29 @@ def display(
             help="Whether to overwrite the output file if it already exists.",
         ),
     ] = False,
+    quiet: Annotated[
+        bool,
+        typer.Option(
+            "--quiet",
+            help="Suppress output messages.",
+        ),
+    ] = False,
 ) -> None:
     """Display the currently stored credentials."""
-    messenger = Console(stderr=True)
+    if quiet:
+        messenger = Console(stderr=True, quiet=True)
+    else:
+        messenger = Console(stderr=True)
     stdout = Console()
     settings = get_auth_manager_settings_from_context(ctx)
-    with SqliteAuthManager(settings.auth_db_path) as auth_manager:
-        if cred_id is not None:
-            credentials = auth_manager.get_credentials(cred_id)
-            if not credentials:
-                messenger.print(f"[red]Credentials with ID {cred_id} not found.[/red]")
-                raise typer.Exit(1)
-            credential_details = CredentialDetails(
-                auth_credentials=credentials,
-                authorized_character_count=len(
-                    auth_manager.get_all_character_ids(cred_id)
-                ),
-            )
-            output = detailed_display(credential_details)
-        else:
-            all_credentials = auth_manager.get_all_credentials()
-            if not all_credentials:
-                messenger.print("[yellow]No credentials found.[/yellow]")
-                raise typer.Exit(0)
-            credential_details_list = [
-                CredentialDetails(
-                    auth_credentials=cred,
-                    authorized_character_count=len(
-                        auth_manager.get_all_character_ids(cred.cred_id)
-                    ),
-                )
-                for cred in all_credentials
-            ]
-            output = display_credientials_summary(credential_details_list)
+    credentials = asyncio.run(_get_credentials_details(settings.auth_db_path, cred_id))
+    if isinstance(credentials, list):
+        if not credentials:
+            messenger.print("[yellow]No credentials found in the database.[/yellow]")
+            raise typer.Exit(0)
+        output = display_credientials_summary(credentials)
+    else:
+        output = detailed_display(credentials)
     if not file_path:
         if plain:
             stdout.print(output)
@@ -130,3 +121,30 @@ def display(
             overwrite=overwrite,
         )
         messenger.print(f"Output written to {output_path}")
+
+
+async def _get_credentials_details(
+    db_path: Path, cred_id: UUID | None
+) -> CredentialDetails | list[CredentialDetails]:
+    async with SqliteAuthManager(db_path) as auth_manager:
+        if cred_id is not None:
+            credentials = auth_manager.get_credentials(cred_id)
+            credential_details = CredentialDetails(
+                auth_credentials=credentials,
+                authorized_character_count=len(
+                    auth_manager.get_all_character_ids(cred_id)
+                ),
+            )
+            return credential_details
+        else:
+            all_credentials = auth_manager.get_all_credentials()
+            credential_details_list = [
+                CredentialDetails(
+                    auth_credentials=cred,
+                    authorized_character_count=len(
+                        auth_manager.get_all_character_ids(cred.cred_id)
+                    ),
+                )
+                for cred in all_credentials
+            ]
+            return credential_details_list

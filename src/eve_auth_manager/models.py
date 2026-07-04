@@ -103,11 +103,15 @@ class ValidatedToken:
 @dataclass(slots=True, frozen=True)
 class AuthorizedCharacter:
     character_id: int
+    """The ID of the character."""
     cred_id: UUID
+    """The ID of the credentials."""
     character_name: str
+    """The name of the character."""
     expires_at: int
     """Expiration time as a UNIX timestamp."""
     oauth_token: OauthToken
+    """The OAuth token for the character."""
 
     @property
     def expires_in(self) -> int:
