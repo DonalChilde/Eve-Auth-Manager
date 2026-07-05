@@ -1,4 +1,4 @@
-"""PKCE code challenge and verifier generation."""
+"""Utilities for generating RFC 7636 PKCE verifier and S256 challenge values."""
 
 import base64
 import hashlib
@@ -9,16 +9,32 @@ from dataclasses import dataclass
 
 @dataclass(slots=True)
 class PKCEData:
-    """Data class to hold PKCE code challenge and verifier."""
+    """PKCE values required across the OAuth authorization flow.
+
+    Attributes:
+        code_challenge: Base64url-encoded SHA-256 digest of the verifier,
+            without padding, for the authorization request.
+        code_verifier: High-entropy RFC 7636 verifier to retain and send to
+            the token endpoint.
+    """
 
     code_challenge: str
     code_verifier: str
 
 
 def generate_code_challenge_and_verifier() -> PKCEData:
-    """Generate a PKCE code challenge and verifier.
+    """Generate PKCE verifier and S256 challenge values.
 
-    The verifier uses only RFC 7636 unreserved characters and length constraints.
+    Creates a 64-character verifier using RFC 7636 unreserved characters, then
+    derives the corresponding S256 code challenge by hashing the verifier with
+    SHA-256 and encoding the digest with unpadded base64url.
+
+    Returns:
+        PKCEData containing the verifier and its derived code challenge.
+
+    Raises:
+        ValueError: If the generated verifier violates RFC 7636 length or
+            character constraints. This indicates an internal invariant failure.
     """
     allowed_chars = string.ascii_letters + string.digits + "-._~"
 

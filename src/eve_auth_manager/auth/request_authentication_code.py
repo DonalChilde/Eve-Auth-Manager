@@ -1,4 +1,4 @@
-"""Helper functions for requesting an OAuth token for ESI API access."""
+"""Helpers for building an EVE SSO authorization request and capturing its callback."""
 
 import logging
 import threading
@@ -18,6 +18,15 @@ logger = logging.getLogger(__name__)
 
 @dataclass(slots=True, frozen=True)
 class AuthenticationRequestParams:
+    """Parameters required to initiate and complete an OAuth authorization flow.
+
+    Attributes:
+        redirect_url: Fully formed authorization URL for the user to open.
+        state: CSRF protection value that must match the callback query.
+        code_verifier: PKCE verifier to retain for later token exchange.
+        code_challenge: PKCE challenge embedded in the authorization URL.
+    """
+
     redirect_url: str
     """URL to redirect the user to for authentication."""
     state: str
@@ -37,9 +46,20 @@ def generate_url(
     state: str,
     code_challenge_method: str = "S256",
 ) -> str:
-    """Generate the URL.
+    """Build the OAuth authorization URL for the EVE SSO flow.
 
-    The URL for the user to visit to authorize the application.
+    Args:
+        code_challenge: PKCE code challenge derived from the verifier.
+        client_id: OAuth client identifier for the application.
+        callback_url: Redirect URI registered for the application.
+        authorization_endpoint: Authorization endpoint URI.
+        scopes: Requested OAuth scopes.
+        state: CSRF protection value to round-trip through the callback.
+        code_challenge_method: PKCE challenge method to advertise. Defaults to
+            S256.
+
+    Returns:
+        Complete authorization URL for the user to visit.
     """
     query_params = {
         "response_type": "code",
@@ -57,7 +77,19 @@ def generate_url(
 def generate_request_params(
     client_id: str, callback_url: str, authorization_endpoint: str, scopes: list[str]
 ) -> AuthenticationRequestParams:
-    """Generate the request parameters for the authentication request."""
+    """Generate PKCE and state values for a new authorization request.
+
+    Args:
+        client_id: OAuth client identifier for the application.
+        callback_url: Redirect URI registered for the application.
+        authorization_endpoint: Authorization endpoint URI.
+        scopes: Requested OAuth scopes.
+
+    Returns:
+        AuthenticationRequestParams containing the authorization URL plus the
+        generated state and PKCE values needed to validate the callback and
+        exchange the authorization code.
+    """
     pkce_codes = generate_code_challenge_and_verifier()
     state = generate_secure_random_string(16)
     return AuthenticationRequestParams(
@@ -80,10 +112,27 @@ def start_web_server_and_listen_for_code(
     expected_state: str,
     timeout_seconds: int = 300,
 ) -> str:
-    """Listen for the OAuth callback and return the authorization code.
+    """Start a local callback server and wait for an OAuth authorization code.
 
-    The HTTP server runs on a background thread and this function blocks until the
-    callback is received, an error occurs, or timeout is reached.
+    Parses the provided redirect URL to determine the local host, port, and
+    path to bind. The callback must include the expected state value or the
+    request is rejected. The HTTP server runs on a background thread and this
+    function blocks until the callback is received, an error occurs, or the
+    timeout is reached.
+
+    Args:
+        redirect_url: Registered OAuth callback URL to listen on locally.
+        expected_state: CSRF protection value expected in the callback query.
+        timeout_seconds: Maximum time to wait for the callback before failing.
+
+    Returns:
+        Authorization code extracted from a valid callback request.
+
+    Raises:
+        ValueError: If the redirect URL is invalid, the callback reports an
+            OAuth error, or the callback state is missing or mismatched.
+        TimeoutError: If no callback is received before the timeout elapses.
+        RuntimeError: If the callback completes without an authorization code.
     """
     parsed_callback = urlparse(redirect_url)
     if not parsed_callback.hostname:

@@ -1,4 +1,4 @@
-"""Low level helper functions for working with ESI Oauth tokens."""
+"""Helpers for exchanging, refreshing, revoking, and validating EVE SSO tokens."""
 
 import logging
 from collections.abc import Sequence
@@ -11,32 +11,32 @@ logger = logging.getLogger(__name__)
 
 
 class TokenValidationError(Exception):
-    def __init__(self, *args: Any) -> None:
-        """Custom exception for token validation errors."""
+    def __init__(self, *args: object) -> None:
+        """Raised when token validation cannot be completed successfully."""
         super().__init__(*args)
 
 
 class NewTokenRequestError(Exception):
-    def __init__(self, *args: Any) -> None:
-        """Custom exception for errors during new token requests."""
+    def __init__(self, *args: object) -> None:
+        """Raised when exchanging an authorization code for token data fails."""
         super().__init__(*args)
 
 
 class TokenRefreshError(Exception):
-    def __init__(self, *args: Any) -> None:
-        """Custom exception for errors during token refresh."""
+    def __init__(self, *args: object) -> None:
+        """Raised when refreshing an OAuth token fails."""
         super().__init__(*args)
 
 
 class TokenRevocationError(Exception):
-    def __init__(self, *args: Any) -> None:
-        """Custom exception for errors during token revocation."""
+    def __init__(self, *args: object) -> None:
+        """Raised when submitting a token revocation request fails."""
         super().__init__(*args)
 
 
 class DecodeTokenError(Exception):
-    def __init__(self, *args: Any) -> None:
-        """Custom exception for errors during token decoding."""
+    def __init__(self, *args: object) -> None:
+        """Raised when a JWT cannot be decoded and validated."""
         super().__init__(*args)
 
 
@@ -47,7 +47,24 @@ def request_token(
     token_endpoint: str,
     session: Client,
 ) -> dict[str, Any]:
-    """Takes an authorization code and code verifier and exchanges it for an access token and refresh token."""
+    """Exchange an authorization code and PKCE verifier for OAuth token data.
+
+    Args:
+        client_id: OAuth client identifier for the EVE application.
+        authorization_code: Authorization code returned by the SSO callback.
+        code_verifier: Original PKCE verifier paired with the authorization
+            request.
+        token_endpoint: Token endpoint URI used for code exchange.
+        session: Configured HTTP client used to perform the request.
+
+    Returns:
+        Parsed token response from the SSO, including access token metadata and
+        typically a refresh token.
+
+    Raises:
+        NewTokenRequestError: If the HTTP request fails or the response cannot
+            be processed.
+    """
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
     }
@@ -77,7 +94,22 @@ def refresh_token(
     token_endpoint: str,
     session: Client,
 ) -> dict[str, Any]:
-    """Takes a refresh token and exchanges it for a new oauth token."""
+    """Exchange a refresh token for a new OAuth token response.
+
+    Args:
+        refresh_token: Refresh token issued by the SSO.
+        client_id: OAuth client identifier for the EVE application.
+        token_endpoint: Token endpoint URI used for token refresh.
+        session: Configured HTTP client used to perform the request.
+
+    Returns:
+        Parsed token response from the SSO, including a replacement access
+        token and usually a replacement refresh token.
+
+    Raises:
+        TokenRefreshError: If the HTTP request fails or the response cannot be
+            processed.
+    """
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
     }
@@ -105,12 +137,26 @@ def revoke_refresh_token(
     client_id: str,
     session: Client,
 ) -> Any:
-    """Revoke a refresh token.
+    """Request revocation of a refresh token.
 
-    Im not sure how to tell for sure if the refresh token got revoked, except to test a
-    refresh after revocation and see if it fails. The SSO returns a 200 OK response even
-    if the token is invalid or already revoked, so we have to rely on testing the token
-    after revocation to confirm it worked.
+    Note:
+        The revocation endpoint may return HTTP 200 even when the token is
+        already invalid or previously revoked. A successful response confirms
+        the request was accepted, not that later refresh attempts are
+        guaranteed to fail.
+
+    Args:
+        refresh_token: Refresh token to submit for revocation.
+        revocation_endpoint: Revocation endpoint URI.
+        client_id: OAuth client identifier for the EVE application.
+        session: Configured HTTP client used to perform the request.
+
+    Returns:
+        Parsed response body returned by the revocation endpoint.
+
+    Raises:
+        TokenRevocationError: If the HTTP request fails or the response cannot
+            be processed.
     """
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -141,21 +187,24 @@ async def async_request_token(
     token_endpoint: str,
     session: AsyncClient,
 ) -> dict[str, Any]:
-    """Takes an authorization code and code verifier and exchanges it for an access token and refresh token.
+    """Exchange an authorization code and PKCE verifier for OAuth token data.
 
     Args:
-        client_id: The client ID of the application.
-        authorization_code: The authorization code received from the SSO.
-        code_verifier: The code verifier used to generate the code challenge, as generated by `generate_code_challenge`.
-        token_endpoint: The token endpoint URI for exchanging the authorization code.
-        session: The httpx2.AsyncClient session for making requests.
+        client_id: OAuth client identifier for the EVE application.
+        authorization_code: Authorization code returned by the SSO callback.
+        code_verifier: Original PKCE verifier paired with the authorization
+            request.
+        token_endpoint: Token endpoint URI used for code exchange.
+        session: Configured async HTTP client used to perform the request.
 
     Returns:
-        A dictionary containing the access token and refresh token.
+        Parsed token response from the SSO, including access token metadata and
+        typically a refresh token.
 
     Raises:
         ValueError: If session is not initialized.
-        httpx2.HTTPStatusError: If the token request fails.
+        NewTokenRequestError: If the HTTP request fails or the response cannot
+            be processed.
     """
     if not session:
         raise ValueError("session must be initialized to request token.")
@@ -190,20 +239,22 @@ async def async_refresh_token(
     token_endpoint: str,
     session: AsyncClient,
 ) -> dict[str, Any]:
-    """Takes a refresh token and exchanges it for a new oauth token.
+    """Exchange a refresh token for a new OAuth token response.
 
     Args:
-        refresh_token: The refresh token portion of the OAuth2 token.
-        client_id: The client ID of the application.
-        token_endpoint: The token endpoint URI for refreshing tokens.
-        session: The httpx2.AsyncClient session for making requests.
+        refresh_token: Refresh token issued by the SSO.
+        client_id: OAuth client identifier for the EVE application.
+        token_endpoint: Token endpoint URI used for token refresh.
+        session: Configured async HTTP client used to perform the request.
 
     Returns:
-        A dictionary containing the new access token and refresh token.
+        Parsed token response from the SSO, including a replacement access
+        token and usually a replacement refresh token.
 
     Raises:
         ValueError: If session is not initialized.
-        httpx2.HTTPStatusError: If the token request fails.
+        TokenRefreshError: If the HTTP request fails or the response cannot be
+            processed.
     """
     if not session:
         raise ValueError("session must be initialized to refresh token.")
@@ -236,21 +287,26 @@ async def async_revoke_refresh_token(
     client_id: str,
     session: AsyncClient,
 ) -> Any:
-    """Revoke a refresh token.
+    """Request revocation of a refresh token.
 
-    Im not sure how to tell for sure if the refresh token got revoked, except to test a
-    refresh after revocation and see if it fails. The SSO returns a 200 OK response even
-    if the token is invalid or already revoked, so we have to rely on testing the token
-    after revocation to confirm it worked.
+    Note:
+        The revocation endpoint may return HTTP 200 even when the token is
+        already invalid or previously revoked. A successful response confirms
+        the request was accepted, not that later refresh attempts are
+        guaranteed to fail.
 
     Args:
-        refresh_token: The refresh token to revoke.
-        revocation_endpoint: The revocation endpoint URI.
-        client_id: The client ID of the application.
-        session: The httpx2.AsyncClient session for making requests.
+        refresh_token: Refresh token to submit for revocation.
+        revocation_endpoint: Revocation endpoint URI.
+        client_id: OAuth client identifier for the EVE application.
+        session: Configured async HTTP client used to perform the request.
+
+    Returns:
+        None. Success is indicated by the request completing without raising.
 
     Raises:
-        httpx2.HTTPStatusError: If the revocation request fails.
+        TokenRevocationError: If the HTTP request fails or the response cannot
+            be processed.
     """
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -288,26 +344,25 @@ def validate_jwt_token(
     user_agent: str | None = None,
     jwks_uri: str | None = None,
 ) -> dict[str, Any]:
-    """Validates and decodes a JWT Token.
+    """Validate and decode a JWT access token.
 
     Args:
-        access_token: The JWT token to validate.
-
-        jwks_client: An optional PyJWKClient instance to use for fetching keys.
-            If None, a new client will be created.
-        audience: Expected audience for the token.
-        issuers: Valid issuers for the token.
-        user_agent: The User-Agent string to use in requests.
-        jwks_uri: The JWKS URI to fetch signing keys from. Required if jwks_client is None.
+        access_token: JWT access token to validate.
+        jwks_client: Optional JWKS client to reuse for signing-key lookups and
+            caching. If omitted, a new client will be created.
+        audience: Expected token audience enforced during validation.
+        issuers: Allowed token issuers enforced during validation.
+        user_agent: User-Agent header to use when creating a new JWKS client.
+        jwks_uri: JWKS endpoint URI to use when creating a new JWKS client.
 
     Returns:
-        The content of the validated JWT access token.
+        Decoded token claims for a token that passed signature and claim
+        validation.
 
     Raises:
         ValueError: If jwks_uri is not provided when jwks_client is None.
-        jwt.ExpiredSignatureError: If the token has expired.
-        jwt.InvalidTokenError: If the token is invalid.
-        Exception: If any other error occurs.
+        DecodeTokenError: If the token is expired, invalid, or cannot be
+            decoded.
     """
     # NOTE the jwks_client can cache the keys, so we dont have to fetch them every time.
     # Pass in a jwks_client if you have one.
@@ -318,7 +373,8 @@ def validate_jwt_token(
             raise ValueError("jwks_uri must be provided if jwks_client is None")
         if not user_agent:
             logger.warning(
-                "User-Agent is empty when fetching JWKS keys with PyJWKClient. It's recommended to provide a User-Agent string when fetching JWKS keys."
+                "User-Agent is empty when fetching JWKS keys with PyJWKClient. It's "
+                "recommended to provide a User-Agent string when fetching JWKS keys."
             )
         jwks_client = PyJWKClient(jwks_uri, headers=headers)
     unverified_header = get_unverified_header(access_token)
