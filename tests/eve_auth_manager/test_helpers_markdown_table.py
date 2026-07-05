@@ -1,5 +1,8 @@
 """Tests for markdown table rendering helpers."""
 
+import runpy
+import sys
+
 import pytest
 
 from eve_auth_manager.helpers.markdown_table import (
@@ -103,3 +106,22 @@ def test_markdown_table_render_supports_header_only_tables() -> None:
     rendered = table.render()
 
     assert rendered == "| Name | Qty |\n| ---- | --- |"
+
+
+def test_markdown_table_module_main_renders_demo_output(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The module demo block should render the sample tables without warning noise."""
+    previous_module = sys.modules.pop("eve_auth_manager.helpers.markdown_table", None)
+
+    try:
+        runpy.run_module("eve_auth_manager.helpers.markdown_table", run_name="__main__")
+    finally:
+        if previous_module is not None:
+            sys.modules["eve_auth_manager.helpers.markdown_table"] = previous_module
+
+    captured = capsys.readouterr()
+    assert "-- default (space) --" in captured.out
+    assert "-- html <br> --" in captured.out
+    assert "-- dict-based rows --" in captured.out
+    assert "Gadget \\| Deluxe" in captured.out

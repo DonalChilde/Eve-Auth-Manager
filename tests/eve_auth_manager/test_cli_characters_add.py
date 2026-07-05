@@ -385,3 +385,207 @@ def test_add_exits_when_validated_character_does_not_match_request(
         add(ctx, 42, cred_id=cred_id, browser_auto_open=False, quiet=True)  # type: ignore[arg-type]
 
     assert exc_info.value.exit_code == 1
+
+
+@pytest.mark.parametrize(
+    ("opened", "expected_messages"),
+    [
+        (True, ["Opened browser for authorization."]),
+        (
+            False,
+            [
+                "Could not automatically open browser. Visit this URL to continue:",
+                "https://login.eveonline.com/authorize?foo=bar",
+            ],
+        ),
+    ],
+)
+def test_add_browser_auto_open_reports_result(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    opened: bool,
+    expected_messages: list[str],
+) -> None:
+    """Add should report whether automatic browser launch succeeded."""
+    ctx = _make_context(tmp_path)
+    cred_id = UUID("20202020-2020-2020-2020-202020202020")
+    oauth_metadata = SimpleNamespace(
+        authorization_endpoint="https://login.eveonline.com/authorize"
+    )
+    oauth_token = OauthToken(
+        token_data={
+            "access_token": "access-token",
+            "refresh_token": "refresh-token",
+            "expires_in": 3_600,
+            "token_type": "Bearer",
+        }
+    )
+    validated_token = SimpleNamespace(character_id=42, character_name="Jane Capsuleer")
+    character_token = _make_character(cred_id=cred_id, character_id=42)
+    request_params = SimpleNamespace(
+        redirect_url="https://login.eveonline.com/authorize?foo=bar",
+        state="expected-state",
+        code_verifier="verifier-value",
+    )
+    printed: list[str] = []
+
+    class FakeConsole:
+        def __init__(self, **kwargs: object) -> None:
+            return None
+
+        def print(self, message: str) -> None:
+            printed.append(message)
+
+    class FakeManager:
+        def __init__(self) -> None:
+            self.session = object()
+            self.jwks_client = object()
+            self.oauth_metadata = oauth_metadata
+
+        def __enter__(self) -> "FakeManager":
+            return self
+
+        def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+            return None
+
+        def get_credential(
+            self, *, cred_id: UUID | None = None, cred_name: str | None = None
+        ) -> object:
+            return SimpleNamespace(
+                cred_id=cred_id,
+                clientId="client-id",
+                callbackUrl="http://localhost/callback",
+                scopes=["scope.one"],
+            )
+
+        def get_all_character_ids(self, credential_id: UUID) -> dict[int, str]:
+            assert credential_id == cred_id
+            return {}
+
+        def add_character(
+            self, *, cred_id: UUID, character: AuthorizedCharacter
+        ) -> None:
+            assert (
+                cred_id
+                == character.cred_id
+                == UUID("20202020-2020-2020-2020-202020202020")
+            )
+
+    monkeypatch.setattr(add_module, "Console", FakeConsole)
+    monkeypatch.setattr(add_module, "SqliteAuthManager", lambda path: FakeManager())
+    monkeypatch.setattr(
+        add_module, "webbrowser", SimpleNamespace(open=lambda url: opened)
+    )
+    monkeypatch.setattr(
+        add_module, "generate_request_params", lambda **kwargs: request_params
+    )
+    monkeypatch.setattr(
+        add_module,
+        "start_web_server_and_listen_for_code",
+        lambda **kwargs: "auth-code",
+    )
+    monkeypatch.setattr(
+        add_module.token_tools, "request_new_token", lambda **kwargs: oauth_token
+    )
+    monkeypatch.setattr(
+        add_module.token_tools, "validate_token", lambda **kwargs: validated_token
+    )
+    monkeypatch.setattr(
+        add_module.token_tools,
+        "create_character_token",
+        lambda **kwargs: character_token,
+    )
+
+    add(ctx, 42, cred_id=cred_id, browser_auto_open=True, quiet=False)  # type: ignore[arg-type]
+
+    assert printed[: len(expected_messages)] == expected_messages
+
+
+def test_add_resolves_credentials_by_name(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Add should use `cred_name` when no credential ID is provided."""
+    ctx = _make_context(tmp_path)
+    resolved_cred_id = UUID("23232323-2323-2323-2323-232323232323")
+    calls: dict[str, object] = {}
+    oauth_metadata = SimpleNamespace(
+        authorization_endpoint="https://login.eveonline.com/authorize"
+    )
+    request_params = SimpleNamespace(
+        redirect_url="https://login.eveonline.com/authorize?foo=bar",
+        state="expected-state",
+        code_verifier="verifier-value",
+    )
+    oauth_token = OauthToken(
+        token_data={
+            "access_token": "access-token",
+            "refresh_token": "refresh-token",
+            "expires_in": 3_600,
+            "token_type": "Bearer",
+        }
+    )
+    validated_token = SimpleNamespace(character_id=42, character_name="Jane Capsuleer")
+    character_token = _make_character(cred_id=resolved_cred_id, character_id=42)
+
+    class FakeManager:
+        def __init__(self) -> None:
+            self.oauth_metadata = oauth_metadata
+            self.session = object()
+            self.jwks_client = object()
+
+        def __enter__(self) -> "FakeManager":
+            return self
+
+        def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+            return None
+
+        def get_credential(
+            self, *, cred_id: UUID | None = None, cred_name: str | None = None
+        ) -> object:
+            calls["get_credential"] = {"cred_id": cred_id, "cred_name": cred_name}
+            return SimpleNamespace(
+                cred_id=resolved_cred_id,
+                clientId="client-id",
+                callbackUrl="http://localhost/callback",
+                scopes=["scope.one"],
+            )
+
+        def get_all_character_ids(self, credential_id: UUID) -> dict[int, str]:
+            calls["get_all_character_ids"] = credential_id
+            return {}
+
+        def add_character(
+            self, *, cred_id: UUID, character: AuthorizedCharacter
+        ) -> None:
+            calls["add_character"] = {"cred_id": cred_id, "character": character}
+
+    monkeypatch.setattr(add_module, "SqliteAuthManager", lambda path: FakeManager())
+    monkeypatch.setattr(
+        add_module, "generate_request_params", lambda **kwargs: request_params
+    )
+    monkeypatch.setattr(
+        add_module,
+        "start_web_server_and_listen_for_code",
+        lambda **kwargs: "auth-code",
+    )
+    monkeypatch.setattr(
+        add_module.token_tools, "request_new_token", lambda **kwargs: oauth_token
+    )
+    monkeypatch.setattr(
+        add_module.token_tools, "validate_token", lambda **kwargs: validated_token
+    )
+    monkeypatch.setattr(
+        add_module.token_tools,
+        "create_character_token",
+        lambda **kwargs: character_token,
+    )
+
+    add(ctx, 42, cred_name="main", browser_auto_open=False, quiet=True)  # type: ignore[arg-type]
+
+    assert calls["get_credential"] == {"cred_id": None, "cred_name": "main"}
+    assert calls["get_all_character_ids"] == resolved_cred_id
+    assert calls["add_character"] == {
+        "cred_id": resolved_cred_id,
+        "character": character_token,
+    }

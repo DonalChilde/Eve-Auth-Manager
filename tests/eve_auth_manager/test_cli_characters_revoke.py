@@ -191,3 +191,109 @@ def test_revoke_exits_cleanly_when_manager_returns_no_revocations(
         revoke(ctx, cred_id=cred_id, character_id=[7], quiet=True, force=True)  # type: ignore[arg-type]
 
     assert exc_info.value.exit_code == 0
+
+
+def test_revoke_all_prompts_then_prints_revoked_characters(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Revoke should prompt for all characters and print the revoked list."""
+    ctx = _make_context(tmp_path)
+    cred_id = UUID("21212121-2121-2121-2121-212121212121")
+    printed: list[str] = []
+    prompts: list[str] = []
+
+    class FakeConsole:
+        def __init__(self, **kwargs: object) -> None:
+            return None
+
+        def print(self, message: str) -> None:
+            printed.append(message)
+
+    class FakeManager:
+        def __enter__(self) -> "FakeManager":
+            return self
+
+        def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+            return None
+
+        def get_credential(
+            self, *, cred_id: UUID | None = None, cred_name: str | None = None
+        ) -> object:
+            return SimpleNamespace(cred_id=cred_id)
+
+        def get_all_character_ids(self, credential_id: UUID) -> dict[int, str]:
+            assert credential_id == cred_id
+            return {7: "Jane Capsuleer", 9: "John Capsuleer"}
+
+        def revoke_characters(
+            self, credential_id: UUID, revocation_set: set[int] | None
+        ) -> dict[int, str]:
+            assert credential_id == cred_id
+            assert revocation_set is None
+            return {7: "Jane Capsuleer", 9: "John Capsuleer"}
+
+    monkeypatch.setattr(revoke_module, "Console", FakeConsole)
+    monkeypatch.setattr(revoke_module, "SqliteAuthManager", lambda path: FakeManager())
+    monkeypatch.setattr(
+        revoke_module.typer,
+        "confirm",
+        lambda prompt, abort=True: prompts.append(prompt) or True,
+    )
+
+    revoke(ctx, cred_id=cred_id, quiet=False, force=False)  # type: ignore[arg-type]
+
+    assert prompts == [
+        "Are you sure you want to revoke all characters? This action cannot be undone.\n- 7 - Jane Capsuleer\n- 9 - John Capsuleer"
+    ]
+    assert printed == [
+        "# Revoked characters:\n",
+        "- 7 - Jane Capsuleer",
+        "- 9 - John Capsuleer",
+    ]
+
+
+def test_revoke_selected_characters_prompts_with_selected_names(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Revoke should confirm only the selected characters before revoking."""
+    ctx = _make_context(tmp_path)
+    cred_id = UUID("22222222-2222-2222-2222-222222222222")
+    prompts: list[str] = []
+
+    class FakeManager:
+        def __enter__(self) -> "FakeManager":
+            return self
+
+        def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+            return None
+
+        def get_credential(
+            self, *, cred_id: UUID | None = None, cred_name: str | None = None
+        ) -> object:
+            return SimpleNamespace(cred_id=cred_id)
+
+        def get_all_character_ids(self, credential_id: UUID) -> dict[int, str]:
+            assert credential_id == cred_id
+            return {7: "Jane Capsuleer", 9: "John Capsuleer"}
+
+        def revoke_characters(
+            self, credential_id: UUID, revocation_set: set[int] | None
+        ) -> dict[int, str]:
+            assert credential_id == cred_id
+            assert revocation_set == {9}
+            return {9: "John Capsuleer"}
+
+    monkeypatch.setattr(revoke_module, "SqliteAuthManager", lambda path: FakeManager())
+    monkeypatch.setattr(
+        revoke_module.typer,
+        "confirm",
+        lambda prompt, abort=True: prompts.append(prompt) or True,
+    )
+
+    revoke(ctx, cred_id=cred_id, character_id=[9], quiet=True, force=False)  # type: ignore[arg-type]
+
+    assert prompts == [
+        "Are you sure you want to revoke the following characters? This action cannot be undone.\n- 9 - John Capsuleer"
+    ]
