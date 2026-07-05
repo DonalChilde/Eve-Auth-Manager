@@ -8,7 +8,7 @@ A cli and api for aquiring, storing, retrieving, and refreshing the Oauth tokens
 
 ### State
 
-This project is currently undergoing a major refactor, as it get split into a stand alone project from its previous home. Large parts are currently non-functional, and there are few/no tests.
+This project is feature stable for the current version. The focus now needs to be on writing tests to guaranteem operation. Next will be improved user facing documentation.
 
 ### Goals
 
