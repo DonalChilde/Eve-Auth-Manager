@@ -121,6 +121,19 @@ class ExampleClass:
 - Prefer python language features from the project python version
 - Prefer multiple short functions over one long one, except where this makes the code harder to understand.
 
+## Typer CLI Documentation Style
+
+Use these rules for Typer command docs across the repository.
+
+- Treat option and argument `help=` text as the primary user-facing guidance.
+- Keep `help=` text brief and scannable, including key behavior and constraints.
+- Keep key behavior in both places when helpful: brief in `help=`, expanded in the command docstring.
+- Use command docstrings for expanded and structured details such as Notes, Output, field lists, and JSON shapes.
+- Keep command docstrings user-facing. Do not document invisible internal context parameters.
+- Place developer-only context in nearby code comments below the docstring when needed.
+- Keep terminology and option names consistent across commands (prefer kebab-case option names).
+- Validate help rendering after doc updates with `uv run eve-auth <group> <command> --help`.
+
 ## Non Obvious Patterns
 
 ## Testing Rules
