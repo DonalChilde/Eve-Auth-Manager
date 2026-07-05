@@ -41,7 +41,7 @@ def search(
         bool,
         typer.Option(
             "--plain",
-            help="If set, stdout output will be plain text instead of Rich json.",
+            help="If set, stdout output will be plain text instead of Rich JSON.",
         ),
     ] = False,
     indent: Annotated[

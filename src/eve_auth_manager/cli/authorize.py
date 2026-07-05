@@ -71,18 +71,18 @@ def authorize(
     cred_id: Annotated[
         UUID | None,
         typer.Option(
-            "--cred_id", help="ID of the credentials to use for authorization"
+            "--cred-id", help="ID of the credentials to use for authorization"
         ),
     ] = None,
     cred_name: Annotated[
         str | None,
         typer.Option(
-            "--cred_name", help="Name of the credentials to use for authorization"
+            "--cred-name", help="Name of the credentials to use for authorization"
         ),
     ] = None,
     character_id: Annotated[
         int | None,
-        typer.Option("--character_id", help="ID of the character to authorize"),
+        typer.Option("--character-id", help="ID of the character to authorize"),
     ] = None,
     min_seconds: Annotated[
         int,
@@ -166,7 +166,7 @@ def authorize(
     arguments = ArgumentsRoot.model_validate(combined).root
     if arguments["cred_id"] is None and arguments["cred_name"] is None:
         raise typer.BadParameter(
-            "Either --cred_id or --cred_name must be provided.", param_hint="cred_id"
+            "Either --cred-id or --cred-name must be provided.", param_hint="cred-id"
         )
     settings = get_auth_manager_settings_from_context(ctx)
     with SqliteAuthManager(settings.auth_db_path) as auth_manager:

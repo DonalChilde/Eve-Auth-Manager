@@ -12,6 +12,7 @@ from rich.console import Console
 from rich.markdown import Markdown
 
 from eve_auth_manager.cli.helpers import get_auth_manager_settings_from_context
+from eve_auth_manager.helpers.markdown_table import MarkdownTable
 from eve_auth_manager.helpers.save_text_file import save_text_file
 from eve_auth_manager.models import AuthorizedCharacter
 from eve_auth_manager.sqlite.manager import SqliteAuthManager
@@ -19,30 +20,28 @@ from eve_auth_manager.sqlite.manager import SqliteAuthManager
 app = typer.Typer(no_args_is_help=True, help="Display the currently stored characters.")
 
 
-def _format_markdown_table_value(value: object) -> str:
-    """Return a table-safe markdown representation of a value."""
-    text = str(value)
-    if not text:
-        return "-"
-    return text.replace("|", r"\|").replace("\n", "<br>")
+# def _format_markdown_table_value(value: object) -> str:
+#     """Return a table-safe markdown representation of a value."""
+#     text = str(value)
+#     if not text:
+#         return "-"
+#     return text.replace("|", r"\|").replace("\n", "<br>")
 
 
-def _character_expires_in(character: AuthorizedCharacter) -> int:
-    """Return the number of seconds until the character token expires."""
-    return character.expires_in
+# def _character_expires_in(character: AuthorizedCharacter) -> int:
+#     """Return the number of seconds until the character token expires."""
+#     return character.expires_in
 
 
 def detailed_display(character: AuthorizedCharacter) -> str:
     """Return a detailed display of the character as markdown."""
-    report_lines = ["# Character Details", "", "| Field | Value |", "| --- | --- |"]
+    table = MarkdownTable(headers=["Field", "Value"])
     for field_info in fields(character):
         value = getattr(character, field_info.name)
-        report_lines.append(
-            f"| {field_info.name} | {_format_markdown_table_value(value)} |"
-        )
+        table.add_row([field_info.name, value])
 
-    report_lines.append(f"| expires_in | {_character_expires_in(character)} |")
-    report_string = "\n".join(report_lines)
+    table.add_row(["expires_in", character.expires_in])
+    report_string = "\n".join(["# Character Details", "", table.render()])
     return mdformat_text(report_string, extensions=["tables"])
 
 
@@ -50,22 +49,20 @@ def display_characters_summary(
     characters: Iterable[AuthorizedCharacter],
 ) -> str:
     """Return a summary display of the characters as markdown."""
-    report_lines = [
-        "# Characters Summary",
-        "",
-        "| character_id | character_name | cred_id | expires_in |",
-        "| --- | --- | --- | --- |",
-    ]
+    table = MarkdownTable(
+        headers=["character_id", "character_name", "cred_id", "expires_in"],
+    )
     for character in characters:
-        report_lines.append(
-            "| "
-            f"{character.character_id} | "
-            f"{_format_markdown_table_value(character.character_name)} | "
-            f"{character.cred_id} | "
-            f"{_character_expires_in(character)} |"
+        table.add_row(
+            [
+                character.character_id,
+                character.character_name,
+                character.cred_id,
+                character.expires_in,
+            ]
         )
 
-    report_string = "\n".join(report_lines)
+    report_string = "\n".join(["# Characters Summary", "", table.render()])
     return mdformat_text(report_string, extensions=["tables"])
 
 
@@ -75,17 +72,17 @@ def display(
     cred_id: Annotated[
         UUID | None,
         typer.Option(
-            "--cred_id",
-            help="ID of the credentials to use. If both --cred_id and --cred_name are "
-            "provided, --cred_id will take precedence.",
+            "--cred-id",
+            help="ID of the credentials to use. If both --cred-id and --cred-name are "
+            "provided, --cred-id will take precedence.",
         ),
     ] = None,
     cred_name: Annotated[
         str | None,
         typer.Option(
-            "--cred_name",
-            help="Name of the credentials to use. If both --cred_id and --cred_name are "
-            "provided, --cred_id will take precedence.",
+            "--cred-name",
+            help="Name of the credentials to use. If both --cred-id and --cred-name are "
+            "provided, --cred-id will take precedence.",
         ),
     ] = None,
     character_id: Annotated[
@@ -139,7 +136,7 @@ def display(
             credentials = auth_manager.get_credential(cred_name=cred_name)
         else:
             messenger.print(
-                "[red]Either --cred_id or --cred_name must be provided.[/red]"
+                "[red]Either --cred-id or --cred-name must be provided.[/red]"
             )
             raise typer.Exit(1)
         if character_id is not None:

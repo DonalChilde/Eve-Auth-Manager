@@ -18,17 +18,17 @@ def revoke(
     cred_id: Annotated[
         UUID | None,
         typer.Option(
-            "--cred_id",
-            help="ID of the credentials to use. If both --cred_id and --cred_name are "
-            "provided, --cred_id will take precedence.",
+            "--cred-id",
+            help="ID of the credentials to use. If both --cred-id and --cred-name are "
+            "provided, --cred-id will take precedence.",
         ),
     ] = None,
     cred_name: Annotated[
         str | None,
         typer.Option(
-            "--cred_name",
-            help="Name of the credentials to use. If both --cred_id and --cred_name are "
-            "provided, --cred_id will take precedence.",
+            "--cred-name",
+            help="Name of the credentials to use. If both --cred-id and --cred-name are "
+            "provided, --cred-id will take precedence.",
         ),
     ] = None,
     character_id: Annotated[
@@ -64,7 +64,7 @@ def revoke(
             credentials = auth_manager.get_credential(cred_name=cred_name)
         else:
             messenger.print(
-                "[red]Either --cred_id or --cred_name must be provided.[/red]"
+                "[red]Either --cred-id or --cred-name must be provided.[/red]"
             )
             raise typer.Exit(1)
         ids_with_names = auth_manager.get_all_character_ids(credentials.cred_id)

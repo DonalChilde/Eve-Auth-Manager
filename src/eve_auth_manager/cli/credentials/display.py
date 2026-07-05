@@ -92,18 +92,18 @@ def display(
     cred_id: Annotated[
         UUID | None,
         typer.Option(
-            "--cred_id",
+            "--cred-id",
             help="ID of the credentials to display.If provided, display detailed "
-            "information for the specified credentials. If neither --cred_id nor --cred_name "
+            "information for the specified credentials. If neither --cred-id nor --cred-name "
             "is provided, a summary of all credentials will be displayed.",
         ),
     ] = None,
     cred_name: Annotated[
         str | None,
         typer.Option(
-            "--cred_name",
+            "--cred-name",
             help="Name of the credentials to display. If provided, display detailed "
-            "information for the specified credentials. If neither --cred_id nor --cred_name "
+            "information for the specified credentials. If neither --cred-id nor --cred-name "
             "is provided, a summary of all credentials will be displayed.",
         ),
     ] = None,
@@ -143,7 +143,6 @@ def display(
     else:
         messenger = Console(stderr=True)
     settings = get_auth_manager_settings_from_context(ctx)
-
     credentials = _get_credentials_details(settings.auth_db_path, cred_id, cred_name)
     if isinstance(credentials, list):
         if not credentials:
