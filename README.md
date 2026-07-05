@@ -89,6 +89,7 @@ Top-level commands:
 - `characters`: Add, display, refresh, revoke, and search character
   authorizations.
 - `util`: Maintenance commands such as database reset.
+- `version`: Show the installed CLI version and project URL.
 
 ## Quick Start
 
@@ -118,7 +119,20 @@ Expected JSON shape:
 uv run eve-auth --help
 ```
 
-### 3. Add ESI app credentials
+### 3. Check installed version
+
+```bash
+uv run eve-auth version
+```
+
+Example output:
+
+```text
+esi-auth-manager version 0.4.0
+Project URL: https://github.com/DonalChilde/Eve-Auth-Manager
+```
+
+### 4. Add ESI app credentials
 
 From a JSON file:
 
@@ -132,7 +146,7 @@ From stdin:
 cat ./credentials.json | uv run eve-auth credentials add --from -
 ```
 
-### 4. Display credentials
+### 5. Display credentials
 
 Summary:
 
@@ -146,7 +160,7 @@ Detailed by credential ID:
 uv run eve-auth credentials display --cred-id <credential-uuid>
 ```
 
-### 5. Authorize and add a character
+### 6. Authorize and add a character
 
 ```bash
 uv run eve-auth characters add <character-id> --cred-id <credential-uuid>
@@ -154,7 +168,7 @@ uv run eve-auth characters add <character-id> --cred-id <credential-uuid>
 uv run eve-auth characters add <character-id> --cred-name <credential-name>
 ```
 
-### 6. Get an authorization payload
+### 7. Get an authorization payload
 
 Use `authorize` to refresh a character if needed and emit an `AuthorizedDict`
 JSON payload.
@@ -193,7 +207,7 @@ authenticated endpoints.
 Specific endpoints require scopes that were granted when the application
 credentials were created.
 
-### 7. Use the authorization payload in shell scripts
+### 8. Use the authorization payload in shell scripts
 
 ```bash
 # Extract fields with Python.
@@ -234,7 +248,7 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" \
 	"https://esi.evetech.net/characters/$CHARACTER_ID/attributes/?datasource=tranquility"
 ```
 
-### 8. Use the authorization payload in Python
+### 9. Use the authorization payload in Python
 
 ```python
 # A Python script that accepts piped AuthorizedDict JSON from stdin.
@@ -310,13 +324,13 @@ uv run eve-auth authorize --cred-id <credential-uuid> --character-id <character-
 	| uv run ./esi_attributes_from_authorize.py
 ```
 
-### 9. Display character authorizations
+### 10. Display character authorizations
 
 ```bash
 uv run eve-auth characters display --cred-id <credential-uuid>
 ```
 
-### 10. Refresh character tokens
+### 11. Refresh character tokens
 
 Refresh all for a credential:
 
@@ -330,7 +344,7 @@ Refresh one character:
 uv run eve-auth characters refresh --cred-id <credential-uuid> <character-id>
 ```
 
-### 11. Revoke character authorizations
+### 12. Revoke character authorizations
 
 Revoke all authorized characters for a credential:
 
@@ -344,13 +358,13 @@ Revoke specific characters:
 uv run eve-auth characters revoke --cred-id <credential-uuid> --character-id <id1> --character-id <id2>
 ```
 
-### 12. Search character IDs
+### 13. Search character IDs
 
 ```bash
 uv run eve-auth characters search --search Tritanium
 ```
 
-### 13. Reset the auth database
+### 14. Reset the auth database
 
 ```bash
 uv run eve-auth util reset --force

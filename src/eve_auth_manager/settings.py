@@ -10,10 +10,8 @@ from eve_auth_manager import __app_name__, __url__, __version__
 
 AUDIENCE = "EVE Online"
 """Expected JWT audience for EVE SSO access tokens."""
-
 USER_AGENT = f"{__app_name__} ({__version__}) (+{__url__}) auth_manager stand alone"
 """User-Agent header value sent to remote OAuth and ESI services."""
-
 OAUTH_METADATA_URL = (
     "https://login.eveonline.com/.well-known/oauth-authorization-server"
 )

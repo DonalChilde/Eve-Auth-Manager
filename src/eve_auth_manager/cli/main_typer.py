@@ -20,6 +20,7 @@ from eve_auth_manager.cli.authorize import app as authorize_app
 from eve_auth_manager.cli.characters import app as characters_app
 from eve_auth_manager.cli.credentials import app as credentials_app
 from eve_auth_manager.cli.util import app as util_app
+from eve_auth_manager.cli.version import app as version_app
 from eve_auth_manager.logging_config import setup_logging
 from eve_auth_manager.settings import get_settings
 
@@ -54,3 +55,4 @@ app.add_typer(authorize_app)
 app.add_typer(credentials_app)
 app.add_typer(characters_app)
 app.add_typer(util_app)
+app.add_typer(version_app)
