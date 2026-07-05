@@ -21,13 +21,13 @@ def write_credentials(
     with connection:
         connection.execute(
             """
-            INSERT INTO auth_credentials (
+            INSERT INTO credentials (
                 cred_id,
                 name,
                 description,
-                clientId,
-                clientSecret,
-                callbackUrl,
+                client_id,
+                client_secret,
+                callback_url,
                 scopes,
                 created_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -45,12 +45,73 @@ def write_credentials(
         )
 
 
+def query_credential(
+    connection: sqlite3.Connection, *, cred_id: UUID
+) -> AuthCredential | None:
+    """Query the database for a credential by its ID."""
+    cursor = connection.execute(
+        "SELECT * FROM credentials WHERE cred_id = ?", (str(cred_id),)
+    )
+    row = cursor.fetchone()
+    if row is None:
+        return None
+    return AuthCredential(
+        cred_id=UUID(row["cred_id"]),
+        name=row["name"],
+        description=row["description"],
+        clientId=row["client_id"],
+        clientSecret=row["client_secret"],
+        callbackUrl=row["callback_url"],
+        scopes=json_io.json_loads(row["scopes"]),
+        created_at=row["created_at"],
+    )
+
+
+def query_credential_by_name(
+    connection: sqlite3.Connection, *, cred_name: str
+) -> AuthCredential | None:
+    """Query the database for a credential by its name."""
+    cursor = connection.execute(
+        "SELECT * FROM credentials WHERE name = ?", (cred_name,)
+    )
+    row = cursor.fetchone()
+    if row is None:
+        return None
+    return AuthCredential(
+        cred_id=UUID(row["cred_id"]),
+        name=row["name"],
+        description=row["description"],
+        clientId=row["client_id"],
+        clientSecret=row["client_secret"],
+        callbackUrl=row["callback_url"],
+        scopes=json_io.json_loads(row["scopes"]),
+        created_at=row["created_at"],
+    )
+
+
+def query_credentials(connection: sqlite3.Connection) -> list[AuthCredential]:
+    """Query the database for all credentials."""
+    cursor = connection.execute("SELECT * FROM credentials")
+    rows = cursor.fetchall()
+    return [
+        AuthCredential(
+            cred_id=UUID(row["cred_id"]),
+            name=row["name"],
+            description=row["description"],
+            clientId=row["client_id"],
+            clientSecret=row["client_secret"],
+            callbackUrl=row["callback_url"],
+            scopes=json_io.json_loads(row["scopes"]),
+            created_at=row["created_at"],
+        )
+        for row in rows
+    ]
+
+
 def delete_credentials(connection: sqlite3.Connection, *, cred_id: UUID) -> None:
     """Delete an AuthCredentials from the database."""
     with connection:
-        connection.execute(
-            "DELETE FROM auth_credentials WHERE cred_id = ?", (str(cred_id),)
-        )
+        connection.execute("DELETE FROM credentials WHERE cred_id = ?", (str(cred_id),))
 
 
 def write_authorized_character(
@@ -80,47 +141,6 @@ def write_authorized_character(
                 json_io.json_dumps(character.oauth_token.token_data),
             ),
         )
-
-
-def query_credential(
-    connection: sqlite3.Connection, *, cred_id: UUID
-) -> AuthCredential | None:
-    """Query the database for a credential by its ID."""
-    cursor = connection.execute(
-        "SELECT * FROM auth_credentials WHERE cred_id = ?", (str(cred_id),)
-    )
-    row = cursor.fetchone()
-    if row is None:
-        return None
-    return AuthCredential(
-        cred_id=UUID(row["cred_id"]),
-        name=row["name"],
-        description=row["description"],
-        clientId=row["clientId"],
-        clientSecret=row["clientSecret"],
-        callbackUrl=row["callbackUrl"],
-        scopes=json_io.json_loads(row["scopes"]),
-        created_at=row["created_at"],
-    )
-
-
-def query_credentials(connection: sqlite3.Connection) -> list[AuthCredential]:
-    """Query the database for all credentials."""
-    cursor = connection.execute("SELECT * FROM auth_credentials")
-    rows = cursor.fetchall()
-    return [
-        AuthCredential(
-            cred_id=UUID(row["cred_id"]),
-            name=row["name"],
-            description=row["description"],
-            clientId=row["clientId"],
-            clientSecret=row["clientSecret"],
-            callbackUrl=row["callbackUrl"],
-            scopes=json_io.json_loads(row["scopes"]),
-            created_at=row["created_at"],
-        )
-        for row in rows
-    ]
 
 
 def query_authorized_character(

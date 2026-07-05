@@ -191,4 +191,21 @@ class OAuthMetadataTimestamped:
         return self.metadata["token_endpoint_auth_signing_alg_values_supported"]
 
 
+class AuthorizedDict(TypedDict):
+    """TypedDict for an authorized character.
+
+    This is the public representation of an authorized character.
+
+    It should include just enough information to be used to make authenticated requests
+    to ESI, without exposing sensitive information like the refresh token.
+    """
+
+    cred_id: str
+    character_id: int
+    character_name: str
+    expires_at: int
+    access_token: str
+
+
 EsiAppCredentialRoot = RootModel[EsiAppCredential]
+AuthorizedDictRoot = RootModel[AuthorizedDict]

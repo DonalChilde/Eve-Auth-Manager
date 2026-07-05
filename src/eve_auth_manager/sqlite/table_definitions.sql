@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS credentials (
     row_id INTEGER PRIMARY KEY AUTOINCREMENT,
     cred_id TEXT NOT NULL UNIQUE, -- The unique identifier for the credentials.
-    name TEXT NOT NULL, -- The name associated with the credentials.
+    name TEXT NOT NULL UNIQUE, -- The name associated with the credentials.
     description TEXT, -- A brief description of the credentials.
     client_id TEXT NOT NULL, -- The client ID for the EVE Online SSO.
     client_secret TEXT NOT NULL, -- The client secret for the EVE Online SSO.

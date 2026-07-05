@@ -22,11 +22,19 @@ class AuthManagerError(Exception):
 
 
 class CredentialNotFoundError(AuthManagerError):
-    """Raised when a credential is not found for a given ID."""
+    """Raised when a credential is not found for a given ID or name."""
 
-    def __init__(self, cred_id: UUID, *args: object) -> None:
-        """Initialize the CredentialNotFoundError with the credential ID."""
-        super().__init__(f"Credential with ID {cred_id} not found.", *args)
+    def __init__(
+        self, cred_id: UUID | None = None, cred_name: str | None = None, *args: object
+    ) -> None:
+        """Initialize the CredentialNotFoundError with the credential ID or name."""
+        if cred_id is not None:
+            message = f"Credential with ID {cred_id} not found."
+        elif cred_name is not None:
+            message = f"Credential with name {cred_name} not found."
+        else:
+            message = "Credential not found."
+        super().__init__(message, *args)
 
 
 class CharacterNotFoundError(AuthManagerError):
@@ -59,17 +67,22 @@ class CharactersNotFoundError(AuthManagerError):
 class AuthManagerProtocol(Protocol):
     """Protocol for the AuthManager class."""
 
-    def get_credential(self, cred_id: UUID) -> AuthCredential:
+    def get_credential(
+        self, cred_id: UUID | None = None, cred_name: str | None = None
+    ) -> AuthCredential:
         """Get the credential for the given ID.
+
+        Either `cred_id` or `cred_name` must be provided.
 
         Args:
             cred_id: The ID of the credential to retrieve.
+            cred_name: The name of the credential to retrieve.
 
         Returns:
             The AuthCredential object if found.
 
         Raises:
-            CredentialNotFoundError: If the credential with the given ID is not found.
+            CredentialNotFoundError: If the credential with the given ID or name is not found.
         """
         ...
 

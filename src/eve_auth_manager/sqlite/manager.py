@@ -169,24 +169,38 @@ class SqliteAuthManager(AuthManagerProtocol):
             raise RuntimeError("JWKS client is not initialized.")
         return self._jwks_client
 
-    def get_credential(self, cred_id: UUID) -> AuthCredential:
-        """Get the credential for the given ID.
+    def get_credential(
+        self, cred_id: UUID | None = None, cred_name: str | None = None
+    ) -> AuthCredential:
+        """Get the credential for the given ID or name.
+
+        Either `cred_id` or `cred_name` must be provided, but not both. If both are
+        provided, `cred_id` takes precedence.
 
         Args:
             cred_id: The ID of the credential to retrieve.
+            cred_name: The name of the credential to retrieve.
 
         Returns:
             The AuthCredential object if found.
 
         Raises:
-            CredentialNotFoundError: If the credential with the given ID is
+            CredentialNotFoundError: If the credential with the given ID or name is
                 not found.
         """
         with self._connection_check() as conn:
-            credentials = query.query_credential(conn, cred_id=cred_id)
-            if credentials is None:
-                raise CredentialNotFoundError(cred_id=cred_id)
-            return credentials
+            if cred_id is not None:
+                credential = query.query_credential(conn, cred_id=cred_id)
+                if credential is None:
+                    raise CredentialNotFoundError(cred_id=cred_id)
+                return credential
+            elif cred_name is not None:
+                credential = query.query_credential_by_name(conn, cred_name=cred_name)
+                if credential is None:
+                    raise CredentialNotFoundError(cred_name=cred_name)
+                return credential
+            else:
+                raise ValueError("Either cred_id or cred_name must be provided.")
 
     def get_all_credentials(self) -> list[AuthCredential]:
         """Get all stored credentials.
