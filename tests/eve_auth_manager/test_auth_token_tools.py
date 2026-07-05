@@ -1,8 +1,9 @@
 """Tests for high-level token helper wrappers."""
 
 import asyncio
-from types import SimpleNamespace
 from uuid import UUID
+
+import pytest
 
 import eve_auth_manager.auth.token_tools as token_tools
 from eve_auth_manager.models import OAuthMetadataTimestamped, OauthToken, ValidatedToken
@@ -25,7 +26,7 @@ def _oauth_metadata() -> OAuthMetadataTimestamped:
 
 
 def test_token_tool_request_refresh_revoke_validate_and_create_wrappers(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Synchronous wrappers should delegate to oauth helpers with metadata."""
     metadata = _oauth_metadata()
@@ -33,7 +34,7 @@ def test_token_tool_request_refresh_revoke_validate_and_create_wrappers(
     jwks_client = object()
     events: dict[str, dict[str, object]] = {}
 
-    def fake_request_token(**kwargs):
+    def fake_request_token(**kwargs: object) -> dict[str, object]:
         events["request"] = kwargs
         return {
             "access_token": "access",
@@ -42,7 +43,7 @@ def test_token_tool_request_refresh_revoke_validate_and_create_wrappers(
             "token_type": "Bearer",
         }
 
-    def fake_refresh_token(**kwargs):
+    def fake_refresh_token(**kwargs: object) -> dict[str, object]:
         events["refresh"] = kwargs
         return {
             "access_token": "fresh-access",
@@ -51,11 +52,11 @@ def test_token_tool_request_refresh_revoke_validate_and_create_wrappers(
             "token_type": "Bearer",
         }
 
-    def fake_revoke_refresh_token(**kwargs):
+    def fake_revoke_refresh_token(**kwargs: object) -> dict[str, object]:
         events["revoke"] = kwargs
         return {"revoked": True}
 
-    def fake_validate_jwt_token(**kwargs):
+    def fake_validate_jwt_token(**kwargs: object) -> dict[str, object]:
         events["validate"] = kwargs
         return {
             "sub": "CHARACTER:EVE:99",
@@ -151,13 +152,15 @@ def test_token_tool_request_refresh_revoke_validate_and_create_wrappers(
     }
 
 
-def test_async_token_tool_wrappers_delegate_to_async_oauth_helpers(monkeypatch) -> None:
+def test_async_token_tool_wrappers_delegate_to_async_oauth_helpers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Async wrappers should delegate and wrap results in OauthToken."""
     metadata = _oauth_metadata()
     session = object()
     events: dict[str, dict[str, object]] = {}
 
-    async def fake_request_token(**kwargs):
+    async def fake_request_token(**kwargs: object) -> dict[str, object]:
         events["request"] = kwargs
         return {
             "access_token": "access",
@@ -166,7 +169,7 @@ def test_async_token_tool_wrappers_delegate_to_async_oauth_helpers(monkeypatch) 
             "token_type": "Bearer",
         }
 
-    async def fake_refresh_token(**kwargs):
+    async def fake_refresh_token(**kwargs: object) -> dict[str, object]:
         events["refresh"] = kwargs
         return {
             "access_token": "fresh-access",

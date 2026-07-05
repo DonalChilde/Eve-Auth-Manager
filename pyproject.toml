@@ -51,7 +51,7 @@ parallel = true
 [tool.ruff.lint]
 select = ["B", "UP", "D", "DOC", "FIX", "I", "F401"]
 # non-imperative-mood (D401)
-ignore = ["D401", "D101"]
+ignore = ["D401", "D101", "D421"]
 # extend-select = ["I"]
 
 

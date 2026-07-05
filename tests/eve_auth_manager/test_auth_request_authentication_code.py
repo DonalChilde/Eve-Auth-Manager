@@ -1,5 +1,6 @@
 """Tests for OAuth authorization request and callback helpers."""
 
+# pyright: standard
 import runpy
 import socket
 import sys
@@ -398,15 +399,3 @@ def test_start_web_server_and_listen_for_code_raises_when_no_code_arrives_after_
         )
 
     assert calls["address"] == ("example.com", 80)
-
-
-def test_request_authentication_code_main_guard_raises() -> None:
-    """Module main guard should currently raise until the example is rewritten."""
-    module_name = "eve_auth_manager.auth.request_authentication_code"
-    existing_module = sys.modules.pop(module_name, None)
-    try:
-        with pytest.raises(NotImplementedError, match="Waiting for rewrite"):
-            runpy.run_module(module_name, run_name="__main__")
-    finally:
-        if existing_module is not None:
-            sys.modules[module_name] = existing_module

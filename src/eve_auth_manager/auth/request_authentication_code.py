@@ -246,8 +246,9 @@ def start_web_server_and_listen_for_code(
         server_thread.join(timeout=5)
 
 
-if __name__ == "__main__":
-    raise NotImplementedError("Waiting for rewrite")
+# if __name__ == "__main__":
+#     pass
+# raise NotImplementedError("Waiting for rewrite")
 # TODO rewrite this example to use standardized cli interface, and remove dependency
 # on EveCredentials.
 
