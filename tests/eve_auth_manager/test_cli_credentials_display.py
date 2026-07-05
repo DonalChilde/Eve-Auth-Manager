@@ -14,6 +14,7 @@ def test_detailed_display_includes_all_auth_credential_fields() -> None:
     """Detailed display should include each credential field and the auth count."""
     credentials = AuthCredential(
         cred_id=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+        created_at=1_234,
         name="Primary App",
         description="Used for corp tools",
         clientId="client-id-123",
@@ -33,19 +34,18 @@ def test_detailed_display_includes_all_auth_credential_fields() -> None:
     )
 
     assert "# Credential Details" in output
-    assert "| name                       | Primary App" in output
-    assert "| description                | Used for corp tools" in output
-    assert "| clientId                   | client-id-123" in output
-    assert "| clientSecret               | secret-456" in output
-    assert "| callbackUrl                | https://example.com/callback" in output
+    assert "| cred_id      | aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" in output
+    assert "| created_at   | 1970-01-01T00:20:34Z" in output
+    assert "| characters   | 2" in output
+    assert "| name         | Primary App" in output
+    assert "| description  | Used for corp tools" in output
+    assert "| clientId     | client-id-123" in output
+    assert "| clientSecret | secret-456" in output
+    assert "| callbackUrl  | https://example.com/callback" in output
     assert (
-        "| scopes                     | esi-wallet.read_character_wallet.v1, esi-characters.read_contacts.v1"
+        "| scopes       | ['esi-wallet.read_character_wallet.v1', 'esi-characters.read_contacts.v1']"
         in output
     )
-    assert (
-        "| cred_id                    | aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" in output
-    )
-    assert "| authorized_character_count | 2" in output
 
 
 def test_credentials_summary_lists_requested_columns() -> None:
@@ -53,6 +53,7 @@ def test_credentials_summary_lists_requested_columns() -> None:
     first = CredentialDetails(
         auth_credentials=AuthCredential(
             cred_id=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            created_at=1_234,
             name="Primary App",
             description="Corp auth",
             clientId="client-id-123",
@@ -65,6 +66,7 @@ def test_credentials_summary_lists_requested_columns() -> None:
     second = CredentialDetails(
         auth_credentials=AuthCredential(
             cred_id=UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+            created_at=5_678,
             name="Backup App",
             description="Alliance auth",
             clientId="client-id-789",

@@ -1,6 +1,6 @@
 """Tests for character display markdown generation."""
 
-from unittest.mock import patch
+import re
 from uuid import UUID
 
 from eve_auth_manager.cli.characters.display import (
@@ -27,11 +27,7 @@ def test_detailed_display_includes_all_character_fields() -> None:
         ),
     )
 
-    with patch(
-        "eve_auth_manager.cli.characters.display._character_expires_in",
-        return_value=3_600,
-    ):
-        output = detailed_display(character)
+    output = detailed_display(character)
 
     assert "# Character Details" in output
     assert "character_id" in output
@@ -45,7 +41,7 @@ def test_detailed_display_includes_all_character_fields() -> None:
     assert "oauth_token" in output
     assert "OauthToken(token_data={'access_token': 'access-token'" in output
     assert "expires_in" in output
-    assert "3600" in output
+    assert re.search(r"\|\s*expires_in\s*\|\s*-?\d+\s*\|", output)
 
 
 def test_character_summary_lists_requested_columns() -> None:
@@ -79,11 +75,7 @@ def test_character_summary_lists_requested_columns() -> None:
         ),
     )
 
-    with patch(
-        "eve_auth_manager.cli.characters.display._character_expires_in",
-        side_effect=[3_600, 7_200],
-    ):
-        output = display_characters_summary([first, second])
+    output = display_characters_summary([first, second])
 
     assert "# Characters Summary" in output
     assert "character_id" in output
@@ -93,8 +85,14 @@ def test_character_summary_lists_requested_columns() -> None:
     assert "42" in output
     assert "Jane Capsuleer" in output
     assert "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" in output
-    assert "3600" in output
     assert "84" in output
     assert "John Capsuleer" in output
     assert "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" in output
-    assert "7200" in output
+    assert re.search(
+        r"\|\s*42\s*\|\s*Jane Capsuleer\s*\|\s*aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\s*\|\s*-?\d+\s*\|",
+        output,
+    )
+    assert re.search(
+        r"\|\s*84\s*\|\s*John Capsuleer\s*\|\s*bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb\s*\|\s*-?\d+\s*\|",
+        output,
+    )

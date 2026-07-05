@@ -1,17 +1,19 @@
 """Command to display information about the currently stored credentials as markdown."""
 
 from collections.abc import Iterable
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 import typer
 from mdformat import text as mdformat_text  # type: ignore
 from rich.console import Console
 from rich.markdown import Markdown
+from whenever import Instant
 
 from eve_auth_manager.cli.helpers import get_auth_manager_settings_from_context
+from eve_auth_manager.helpers.markdown_table import MarkdownTable
 from eve_auth_manager.helpers.save_text_file import save_text_file
 from eve_auth_manager.models import AuthCredential
 from eve_auth_manager.sqlite.manager import SqliteAuthManager
@@ -29,36 +31,25 @@ class CredentialDetails:
     authorized_character_count: int
 
 
-def _format_markdown_table_value(value: object) -> str:
-    """Return a table-safe markdown representation of a value."""
-    match value:
-        case list() as values:  # type: ignore
-            if not values:
-                return "-"
-            return ", ".join(str(item) for item in values)  # type: ignore
-        case _:
-            text = str(value)
-            if not text:
-                return "-"
-            return text.replace("|", r"\|").replace("\n", "<br>")
-
-
 def detailed_display(credential_details: CredentialDetails) -> str:
     """Return a detailed display of the credentials as markdown."""
-    report_lines = ["# Credential Details", "", "| Field | Value |", "| --- | --- |"]
+    table = MarkdownTable(headers=["Field", "Value"], newline_replacement="<br>")
     credentials = credential_details.auth_credentials
 
-    for field_info in fields(credentials):
-        value = getattr(credentials, field_info.name)
-        report_lines.append(
-            f"| {field_info.name} | {_format_markdown_table_value(value)} |"
-        )
+    table_rows: list[list[Any]] = []
+    table_rows.append(["cred_id", str(credentials.cred_id)])
+    table_rows.append(["created_at", Instant.from_timestamp(credentials.created_at)])
+    table_rows.append(["characters", credential_details.authorized_character_count])
+    table_rows.append(["name", credentials.name])
+    table_rows.append(["description", credentials.description])
+    table_rows.append(["clientId", credentials.clientId])
+    table_rows.append(["clientSecret", credentials.clientSecret])
+    table_rows.append(["callbackUrl", credentials.callbackUrl])
+    table_rows.append(["scopes", credentials.scopes])
+    for row in table_rows:
+        table.add_row(row)
 
-    report_lines.append(
-        "| authorized_character_count "
-        f"| {credential_details.authorized_character_count} |"
-    )
-    report_string = "\n".join(report_lines)
+    report_string = "\n".join(["# Credential Details", "", table.render()])
     return mdformat_text(report_string, extensions=["tables"])
 
 
@@ -66,23 +57,22 @@ def display_credientials_summary(
     credential_details: Iterable[CredentialDetails],
 ) -> str:
     """Return a summary display of the credentials as markdown."""
-    report_lines = [
-        "# Credentials Summary",
-        "",
-        "| cred_id | name | description | authorized_character_count |",
-        "| --- | --- | --- | --- |",
-    ]
+    table = MarkdownTable(
+        headers=["cred_id", "name", "description", "authorized_character_count"],
+        newline_replacement="<br>",
+    )
     for details in credential_details:
         credentials = details.auth_credentials
-        report_lines.append(
-            "| "
-            f"{credentials.cred_id} | "
-            f"{_format_markdown_table_value(credentials.name)} | "
-            f"{_format_markdown_table_value(credentials.description)} | "
-            f"{details.authorized_character_count} |"
+        table.add_row(
+            [
+                credentials.cred_id,
+                credentials.name,
+                credentials.description,
+                details.authorized_character_count,
+            ]
         )
 
-    report_string = "\n".join(report_lines)
+    report_string = "\n".join(["# Credentials Summary", "", table.render()])
     return mdformat_text(report_string, extensions=["tables"])
 
 
