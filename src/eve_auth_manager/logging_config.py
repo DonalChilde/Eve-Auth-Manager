@@ -1,12 +1,12 @@
-"""Logging setup.
+"""Logging configuration helpers for Eve Auth Manager.
 
-Edit the config dict as needed, mostly the handlers and loggers sections.
+Provides the default dictConfig-based logging setup used by the application,
+including console output and rotating file handlers.
 
-https://gist.github.com/FhyTan/bef73b8f464589cd8c740608f1e1435c
-
-https://stackoverflow.com/questions/7507825/where-is-a-complete-example-of-logging-config-dictconfig
-
-https://earthly.dev/blog/logging-in-python/
+Notes:
+    The logging configuration dictionary is intended to be customized in the
+    handlers and loggers sections if the application needs different output
+    destinations or verbosity.
 """
 
 import logging
@@ -19,7 +19,19 @@ logger.addHandler(logging.NullHandler())
 
 
 def setup_logging(log_dir: Path) -> None:
-    """Set up logging configuration."""
+    """Configure application logging handlers and formatters.
+
+    Creates the target log directory when needed, then installs the default
+    dictConfig-based logging setup for console and rotating file output.
+
+    Args:
+        log_dir: Directory where log files should be created.
+
+    Notes:
+        The configured root logger writes DEBUG-and-above messages to the info
+        rotating file, WARNING-and-above messages to the warning rotating
+        file, and CRITICAL-and-above messages to the console handler.
+    """
     log_dir.mkdir(parents=True, exist_ok=True)
 
     log_config: dict[str, Any] = {

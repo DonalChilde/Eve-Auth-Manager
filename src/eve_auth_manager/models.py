@@ -1,4 +1,4 @@
-"""Models for the auth manager."""
+"""Domain models for Eve Auth Manager credentials, tokens, characters, and OAuth metadata."""
 
 from dataclasses import dataclass, field
 from typing import TypedDict
@@ -26,15 +26,23 @@ class EsiAppCredential:
 
 @dataclass(slots=True, kw_only=True, frozen=True)
 class AuthCredential(EsiAppCredential):
+    """Stored application credential with database identity and creation timestamp."""
+
     cred_id: UUID
-    """An identifier for the credential, used to distinguish between multiple sets of 
-    credential in the auth database."""
+    """Identifier used to distinguish between multiple credential sets."""
     created_at: int
     """The timestamp of when the credential was created, in seconds since the epoch."""
 
 
 @dataclass(slots=True, frozen=True)
 class OauthToken:
+    """Wrapper around a raw OAuth token response payload.
+
+    Exposes typed accessors for the token fields required by the application.
+    The wrapped mapping is expected to contain the standard OAuth token keys
+    returned by the EVE SSO.
+    """
+
     token_data: dict[str, str | int]
 
     @property
@@ -68,11 +76,17 @@ class OauthToken:
 
 @dataclass(slots=True, frozen=True)
 class ValidatedToken:
+    """Wrapper around validated JWT claims returned from token verification.
+
+    Provides typed accessors for the EVE character identity and token timing
+    claims used by the application.
+    """
+
     token_data: dict[str, str | int | list[str]]
 
     @property
     def character_id(self) -> int:
-        """Return the character ID."""
+        """Return the EVE character ID parsed from the JWT sub claim."""
         sub = self.token_data["sub"]
         assert isinstance(sub, str)
         prefix = "CHARACTER:EVE:"
@@ -104,6 +118,8 @@ class ValidatedToken:
 
 @dataclass(slots=True, frozen=True)
 class AuthorizedCharacter:
+    """Authorized EVE character linked to a stored credential and token state."""
+
     character_id: int
     """The ID of the character."""
     cred_id: UUID
@@ -132,7 +148,7 @@ class AuthorizedCharacter:
 
 
 class OAuthMetadataTD(TypedDict):
-    """TypedDict for OAuth metadata."""
+    """TypedDict representing the OAuth provider metadata discovery document."""
 
     issuer: str | list[str]
     authorization_endpoint: str
@@ -145,7 +161,7 @@ class OAuthMetadataTD(TypedDict):
 
 @dataclass(slots=True, frozen=True)
 class OAuthMetadataTimestamped:
-    """A wrapper for OAuth metadata that includes a timestamp of when the metadata was fetched."""
+    """OAuth metadata paired with the timestamp when it was fetched."""
 
     metadata: OAuthMetadataTD
     """The OAuth metadata as a dictionary."""
@@ -154,12 +170,12 @@ class OAuthMetadataTimestamped:
 
     @property
     def timestamp_instant(self) -> Instant:
-        """Convert the timestamp to an Instant."""
+        """Return the fetch timestamp as a whenever.Instant."""
         return Instant.from_timestamp(self.timestamp)
 
     @property
     def issuers(self) -> list[str]:
-        """The issuers of the OAuth metadata."""
+        """Return the issuer metadata normalized to a list of strings."""
         value = self.metadata["issuer"]
         if isinstance(value, str):
             return [value]

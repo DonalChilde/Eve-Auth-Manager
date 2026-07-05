@@ -1,4 +1,4 @@
-"""SQLite auth manager implementation stubs."""
+"""SQLite-backed auth manager for credentials, characters, and OAuth metadata."""
 
 import sqlite3
 from pathlib import Path
@@ -51,10 +51,11 @@ class SqliteAuthManager(AuthManagerProtocol):
         self._jwks_client: PyJWKClient | None = None
 
     def __enter__(self) -> SqliteAuthManager:
-        """Enter the async context manager.
+        """Enter the context manager.
 
-        Opens a read/write SQLite connection and configures both sync and async
-        HTTP clients used by auth operations.
+        Opens a read/write SQLite connection, configures the HTTP client used
+        by auth operations, and ensures OAuth metadata and JWKS state are
+        available.
 
         Returns:
             The initialized manager instance.
@@ -70,9 +71,9 @@ class SqliteAuthManager(AuthManagerProtocol):
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        """Exit the async context manager.
+        """Exit the context manager.
 
-        Ensures SQLite and HTTP client resources are closed.
+        Ensures managed SQLite and HTTP client resources are closed.
 
         Args:
             exc_type: Exception type raised in the context body, if any.
@@ -85,25 +86,27 @@ class SqliteAuthManager(AuthManagerProtocol):
             self._session.close()
 
     def _fetch_oauth_metadata(self) -> OAuthMetadataTimestamped:
-        """Fetch OAuth metadata from the ESI auth server.
+        """Fetch OAuth metadata using the configured HTTP client.
 
         Returns:
-            The OAuthMetadataTimestamped object containing metadata and
+            OAuthMetadataTimestamped containing the fetched metadata and its
             retrieval timestamp.
+
+        Raises:
+            RuntimeError: If the manager has not initialized its HTTP client
+                session.
         """
         if self._session is None:
             raise RuntimeError(
                 "HTTP client session is not initialized. Use the context manager."
             )
-        with self._session as session:
-            response = session.get(
-                OAUTH_METADATA_URL, headers={"User-Agent": USER_AGENT}
-            )
-            response.raise_for_status()
-            metadata = response.json()
-            return OAuthMetadataTimestamped(
-                metadata=metadata, timestamp=Instant.now().timestamp()
-            )
+        session = self._session_check()
+        response = session.get(OAUTH_METADATA_URL, headers={"User-Agent": USER_AGENT})
+        response.raise_for_status()
+        metadata = response.json()
+        return OAuthMetadataTimestamped(
+            metadata=metadata, timestamp=Instant.now().timestamp()
+        )
 
     def _ensure_oauth_metadata(self) -> None:
         """Ensure that OAuth metadata is loaded and the JWKS client is initialized.
@@ -130,7 +133,7 @@ class SqliteAuthManager(AuthManagerProtocol):
         )
 
     def _connection_check(self) -> sqlite3.Connection:
-        """Ensure the SQLite connection is initialized and return it.
+        """Return the active SQLite connection after verifying initialization.
 
         Returns:
             The active SQLite connection.
@@ -140,7 +143,7 @@ class SqliteAuthManager(AuthManagerProtocol):
         return self._sqlite_connection
 
     def _session_check(self) -> Client:
-        """Ensure the HTTP client session is initialized and return it.
+        """Return the active HTTP client session after verifying initialization.
 
         Returns:
             The active HTTP client session.
@@ -150,7 +153,7 @@ class SqliteAuthManager(AuthManagerProtocol):
         return self._session
 
     def _oauth_metadata_check(self) -> OAuthMetadataTimestamped:
-        """Ensure the OAuth metadata is loaded and return it.
+        """Return cached OAuth metadata after verifying it is loaded.
 
         Returns:
             The active OAuthMetadataTimestamped object.
@@ -160,7 +163,7 @@ class SqliteAuthManager(AuthManagerProtocol):
         return self._oauth_metadata
 
     def _jwks_client_check(self) -> PyJWKClient:
-        """Ensure the JWKS client is initialized and return it.
+        """Return the active JWKS client after verifying initialization.
 
         Returns:
             The active PyJWKClient instance.
@@ -206,7 +209,7 @@ class SqliteAuthManager(AuthManagerProtocol):
         """Get all stored credentials.
 
         Returns:
-            A list of all AuthCredentials objects.
+            A list of all AuthCredential objects.
         """
         with self._connection_check() as conn:
             return query.query_credentials(conn)
@@ -266,7 +269,7 @@ class SqliteAuthManager(AuthManagerProtocol):
             return {credential.cred_id: credential.name}
 
     def get_character(self, cred_id: UUID, character_id: int) -> AuthorizedCharacter:
-        """Get the authenticated character for the given character ID.
+        """Get the authorized character for the given character ID.
 
         Args:
             cred_id: The ID of the credential.
@@ -295,7 +298,7 @@ class SqliteAuthManager(AuthManagerProtocol):
     def add_character(
         self, cred_id: UUID, character: AuthorizedCharacter
     ) -> dict[int, str]:
-        """Add an authenticated character.
+        """Add an authorized character.
 
         Args:
             cred_id: The ID of the credential.
@@ -316,7 +319,7 @@ class SqliteAuthManager(AuthManagerProtocol):
             return {character.character_id: character.character_name}
 
     def revoke_character(self, cred_id: UUID, character_id: int) -> dict[int, str]:
-        """Revoke the authenticated character for the given character ID.
+        """Revoke the authorized character for the given character ID.
 
         Also removes the character from the database.
 
@@ -358,20 +361,23 @@ class SqliteAuthManager(AuthManagerProtocol):
     def revoke_characters(
         self, cred_id: UUID, character_ids: set[int] | None = None
     ) -> dict[int, str]:
-        """Revoke the authenticated characters for the given character IDs.
+        """Revoke authorized characters for the given credential.
 
-        Also removes the characters from the database.
+        Also removes the characters from the database. If character_ids is
+        None, revoke all authorized characters associated with the
+        credential.
 
         Args:
             cred_id: The ID of the credential.
-            character_ids: The IDs of the characters to revoke.
+            character_ids: The IDs of the characters to revoke. If None,
+                revoke all characters for the credential.
 
         Returns:
-            A dictionary mapping the revoked character_id to its name.
+            A dictionary mapping each revoked character ID to its name.
 
         Raises:
             CredentialNotFoundError: If the credential with the given ID is not found.
-            CharacterNotFoundError: If any of the characters with the given IDs are not
+            CharactersNotFoundError: If any requested character IDs are not
                 found.
         """
         with self._connection_check() as conn:
@@ -408,7 +414,7 @@ class SqliteAuthManager(AuthManagerProtocol):
             return revoked_characters
 
     def get_all_characters(self, cred_id: UUID) -> list[AuthorizedCharacter]:
-        """Get all authenticated characters for the given credential ID.
+        """Get all authorized characters for the given credential ID.
 
         Args:
             cred_id: The ID of the credential.
@@ -427,7 +433,7 @@ class SqliteAuthManager(AuthManagerProtocol):
             return query.query_authorized_characters(conn, cred_id=cred_id)
 
     def get_all_character_ids(self, cred_id: UUID) -> dict[int, str]:
-        """Get all authenticated character IDs for the given credential ID.
+        """Get all authorized character IDs for the given credential ID.
 
         Args:
             cred_id: The ID of the credential.
@@ -453,12 +459,15 @@ class SqliteAuthManager(AuthManagerProtocol):
         *,
         min_seconds: Annotated[int, Ge(0), Le(1200)] = 300,
     ) -> AuthorizedCharacter:
-        """Refresh the authenticated character for the given character ID.
+        """Refresh the authorized character for the given character ID.
+
+        If the token is not close enough to expiration, the existing
+        AuthorizedCharacter is returned unchanged.
 
         Args:
             cred_id: The ID of the credential.
             character_id: The ID of the character to refresh.
-            min_seconds: The minimum number of seconds til expiration before
+            min_seconds: The minimum number of seconds until expiration before
                 refreshing.
 
         Returns:
@@ -510,20 +519,27 @@ class SqliteAuthManager(AuthManagerProtocol):
         *,
         min_seconds: Annotated[int, Ge(0), Le(1200)] = 300,
     ) -> list[AuthorizedCharacter]:
-        """Refresh authenticated characters for the given credential ID.
+        """Refresh authorized characters for the given credential ID.
+
+        If character_ids is None, refresh all authorized characters
+        associated with the credential. Characters that are not close enough
+        to expiration are returned unchanged.
 
         Args:
             cred_id: The ID of the credential.
             character_ids: The IDs of the characters to refresh. If None,
                 refresh all characters.
-            min_seconds: The minimum number of seconds til expiration before
+            min_seconds: The minimum number of seconds until expiration before
                 refreshing.
 
         Returns:
-            A list of refreshed AuthorizedCharacter objects.
+            A list of AuthorizedCharacter objects reflecting refreshed or
+            unchanged token state.
 
         Raises:
             CredentialNotFoundError: If the credential with the given ID is not found.
+            CharactersNotFoundError: If any requested character IDs are not
+                found.
         """
         with self._connection_check() as conn:
             credential = query.query_credential(conn, cred_id=cred_id)

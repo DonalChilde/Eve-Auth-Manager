@@ -1,6 +1,7 @@
-"""Helper functions for querying the SQLite database.
+"""SQLite persistence helpers for Eve Auth Manager models.
 
-Functions that contain sql should reside in this module.
+This module contains SQL-backed helpers for storing and retrieving
+credentials, authorized characters, and cached OAuth metadata.
 """
 
 import sqlite3
@@ -18,7 +19,12 @@ from eve_auth_manager.models import (
 def write_credentials(
     connection: sqlite3.Connection, *, credentials: AuthCredential
 ) -> None:
-    """Write an AuthCredentials to the database."""
+    """Insert a credential record into the database.
+
+    Args:
+        connection: Open SQLite connection.
+        credentials: Credential model to persist.
+    """
     with connection:
         connection.execute(
             """
@@ -49,7 +55,7 @@ def write_credentials(
 def query_credential(
     connection: sqlite3.Connection, *, cred_id: UUID
 ) -> AuthCredential | None:
-    """Query the database for a credential by its ID."""
+    """Return the credential for the given ID, or None if no row exists."""
     cursor = connection.execute(
         "SELECT * FROM credentials WHERE cred_id = ?", (str(cred_id),)
     )
@@ -71,7 +77,7 @@ def query_credential(
 def query_credential_by_name(
     connection: sqlite3.Connection, *, cred_name: str
 ) -> AuthCredential | None:
-    """Query the database for a credential by its name."""
+    """Return the credential for the given name, or None if no row exists."""
     cursor = connection.execute(
         "SELECT * FROM credentials WHERE name = ?", (cred_name,)
     )
@@ -91,7 +97,7 @@ def query_credential_by_name(
 
 
 def query_credentials(connection: sqlite3.Connection) -> list[AuthCredential]:
-    """Query the database for all credentials."""
+    """Return all credential records stored in the database."""
     cursor = connection.execute("SELECT * FROM credentials")
     rows = cursor.fetchall()
     return [
@@ -110,7 +116,7 @@ def query_credentials(connection: sqlite3.Connection) -> list[AuthCredential]:
 
 
 def delete_credentials(connection: sqlite3.Connection, *, cred_id: UUID) -> None:
-    """Delete an AuthCredentials from the database."""
+    """Delete the credential row for the given ID if it exists."""
     with connection:
         connection.execute("DELETE FROM credentials WHERE cred_id = ?", (str(cred_id),))
 
@@ -118,7 +124,15 @@ def delete_credentials(connection: sqlite3.Connection, *, cred_id: UUID) -> None
 def write_authorized_character(
     connection: sqlite3.Connection, *, character: AuthorizedCharacter
 ) -> None:
-    """Write an AuthorizedCharacter to the database."""
+    """Insert or update an authorized character record.
+
+    If a row with the same credential ID and character ID already exists,
+    the stored character name, expiration, and OAuth token are replaced.
+
+    Args:
+        connection: Open SQLite connection.
+        character: Authorized character model to persist.
+    """
     with connection:
         connection.execute(
             """
@@ -147,7 +161,7 @@ def write_authorized_character(
 def query_authorized_character(
     connection: sqlite3.Connection, *, cred_id: UUID, character_id: int
 ) -> AuthorizedCharacter | None:
-    """Query the database for an authorized character by its ID."""
+    """Return an authorized character, or None if no matching row exists."""
     cursor = connection.execute(
         "SELECT * FROM authorized_characters WHERE cred_id = ? AND character_id = ?",
         (str(cred_id), character_id),
@@ -167,7 +181,7 @@ def query_authorized_character(
 def query_authorized_characters(
     connection: sqlite3.Connection, *, cred_id: UUID
 ) -> list[AuthorizedCharacter]:
-    """Query the database for all authorized characters for a given credential ID."""
+    """Return all authorized characters linked to the given credential ID."""
     cursor = connection.execute(
         "SELECT * FROM authorized_characters WHERE cred_id = ?", (str(cred_id),)
     )
@@ -187,7 +201,7 @@ def query_authorized_characters(
 def delete_authorized_character(
     connection: sqlite3.Connection, *, cred_id: UUID, character_id: int
 ) -> None:
-    """Delete an authorized character from the database."""
+    """Delete the authorized character row if it exists."""
     with connection:
         connection.execute(
             "DELETE FROM authorized_characters WHERE cred_id = ? AND character_id = ?",
@@ -198,7 +212,15 @@ def delete_authorized_character(
 def write_oauth_metadata(
     connection: sqlite3.Connection, *, oauth_metadata: OAuthMetadataTimestamped
 ) -> None:
-    """Write the OAuth metadata to the database."""
+    """Store the cached OAuth metadata singleton row.
+
+    The oauth_metadata table is treated as a single-record cache keyed by
+    row_id = 1.
+
+    Args:
+        connection: Open SQLite connection.
+        oauth_metadata: Cached metadata and its timestamp to persist.
+    """
     with connection:
         connection.execute(
             "INSERT OR REPLACE INTO oauth_metadata (row_id, created_at, oauth_metadata) VALUES (1, ?, ?)",
@@ -209,7 +231,7 @@ def write_oauth_metadata(
 def query_oauth_metadata(
     connection: sqlite3.Connection,
 ) -> OAuthMetadataTimestamped | None:
-    """Query the database for the OAuth metadata."""
+    """Return the cached OAuth metadata singleton row, or None if missing."""
     cursor = connection.execute("SELECT * FROM oauth_metadata WHERE row_id = 1")
     row = cursor.fetchone()
     if row is None:

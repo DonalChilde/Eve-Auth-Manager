@@ -1,4 +1,4 @@
-"""Helpers for creating SQLite connections and managing schema objects."""
+"""Helpers for building SQLite URIs, opening connections, and bootstrapping schema."""
 
 import logging
 import sqlite3
@@ -14,41 +14,42 @@ _table_def_sql = "table_definitions.sql"
 
 
 def read_only_uri(db_path: str) -> str:
-    """Build a read-only SQLite URI for a database path.
+    """Build a read-only SQLite URI for use with sqlite3.connect(uri=True).
 
     Args:
         db_path: Filesystem path to the SQLite database.
 
     Returns:
-        URI string with ``mode=ro``.
+        URI string with mode=ro.
     """
     return f"file:{db_path}?mode=ro"
 
 
 def read_write_uri(db_path: str) -> str:
-    """Build a read-write/create SQLite URI for a database path.
+    """Build a read-write/create SQLite URI for use with sqlite3.connect(uri=True).
 
     Args:
         db_path: Filesystem path to the SQLite database.
 
     Returns:
-        URI string with ``mode=rwc``.
+        URI string with mode=rwc.
     """
     return f"file:{db_path}?mode=rwc"
 
 
 def create_read_only_connection(db_path: str | Path) -> sqlite3.Connection:
-    """Create a read-only SQLite connection and ensure table definitions exist.
+    """Create a read-only SQLite connection for an existing database.
 
-    NOTE: Caller is responsible for closing the connection when done.
+    The caller is responsible for closing the connection when done.
 
     Args:
         db_path: Path to an existing SQLite database file.
 
     Returns:
-        Open SQLite connection configured with ``sqlite3.Row`` row factory.
+        Open SQLite connection configured with sqlite3.Row row factory.
 
     Notes:
+        The target database is expected to already contain the required schema.
         Read-only connections cannot create temporary tables. Query helpers that
         rely on temporary tables for large key filters may fail in this mode.
     """
@@ -57,22 +58,23 @@ def create_read_only_connection(db_path: str | Path) -> sqlite3.Connection:
     uri = read_only_uri(db_path)
     connection = sqlite3.connect(uri, uri=True)
     connection.row_factory = sqlite3.Row
-    table_defs = resource_files(_table_def_parent).joinpath(_table_def_sql).read_text()
-    with connection:
-        connection.executescript(table_defs)
     return connection
 
 
 def create_read_write_connection(db_path: str | Path) -> sqlite3.Connection:
-    """Create a read-write SQLite connection and bootstrap schema objects.
+    """Create a read-write SQLite connection and ensure the packaged schema exists.
 
-    NOTE: Caller is responsible for closing the connection when done.
+    The caller is responsible for closing the connection when done.
 
     Args:
         db_path: Path to the SQLite database file.
 
     Returns:
-        Open SQLite connection configured with ``sqlite3.Row`` row factory.
+        Open SQLite connection configured with sqlite3.Row row factory.
+
+    Notes:
+        Missing tables and other schema objects defined in the packaged SQL
+        script are created before the connection is returned.
     """
     if isinstance(db_path, Path):
         db_path = str(db_path.resolve())
@@ -91,14 +93,17 @@ def create_read_write_connection(db_path: str | Path) -> sqlite3.Connection:
 def db_connection_manager(
     db_path: str | Path, read_only: bool = True
 ) -> Iterator[sqlite3.Connection]:
-    """Context manager for SQLite connections.
+    """Yield a SQLite connection and close it automatically on exit.
+
+    Delegates to the read-only or read-write connection factory based on the
+    read_only flag.
 
     Args:
         db_path: Path to the SQLite database file.
         read_only: Whether to open the connection in read-only mode.
 
     Yields:
-        Open SQLite connection configured with ``sqlite3.Row`` row factory.
+        Open SQLite connection configured with sqlite3.Row row factory.
     """
     connection: sqlite3.Connection | None = None
     try:

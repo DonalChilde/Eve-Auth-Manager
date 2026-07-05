@@ -1,4 +1,4 @@
-"""Settings and constants for the auth_manager package."""
+"""Configuration models and OAuth-related constants for Eve Auth Manager."""
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -9,7 +9,11 @@ from typer import get_app_dir
 from eve_auth_manager import __app_name__, __url__, __version__
 
 AUDIENCE = "EVE Online"
+"""Expected JWT audience for EVE SSO access tokens."""
+
 USER_AGENT = f"{__app_name__} ({__version__}) (+{__url__}) auth_manager stand alone"
+"""User-Agent header value sent to remote OAuth and ESI services."""
+
 OAUTH_METADATA_URL = (
     "https://login.eveonline.com/.well-known/oauth-authorization-server"
 )
@@ -18,35 +22,55 @@ OAUTH_METADATA_URL = (
 
 @dataclass(slots=True, kw_only=True)
 class EveAuthManagerSettings:
+    """Normalized runtime settings used by the application.
+
+    This lightweight dataclass provides the settings shape consumed by the
+    rest of the codebase without exposing the Pydantic settings dependency
+    directly.
+    """
+
     auth_db_path: Path
     logging_directory: Path
 
 
 class EveAuthManagerSettingsPydantic(BaseSettings):
-    """Pydantic settings for the auth_manager package."""
+    """Environment-backed settings loader for Eve Auth Manager.
+
+    Loads configuration from environment variables prefixed with
+    ESI_AUTH_MANAGER_ and supplies default filesystem locations when values
+    are not provided.
+    """
 
     model_config = SettingsConfigDict(env_prefix="ESI_AUTH_MANAGER_")
     auth_db_path: Path = Path(get_app_dir(__app_name__)) / "auth_manager.db"
 
     @property
     def logging_directory(self) -> Path:
-        """Return the logging directory for the auth_manager package."""
+        """Return the directory used for application log files."""
         return self.auth_db_path.parent / "logs"
 
 
 def get_settings(
     pydantic_settings: EveAuthManagerSettingsPydantic | None = None,
 ) -> EveAuthManagerSettings:
-    """Get the settings for the auth_manager package.
+    """Build the normalized application settings object.
 
-    Ways of initializing the settings:
-    1. If the cli is run directly, The settings will be initiallized in the @app.callback,
-    method and stored in the typer context.obj.
-    2. If the cli is imported into another cli, that cli will init the EveAuthManagerSettings
-    object either directly, or by working with an EveAuthManagerSettingsPydantic object,
-    and the settings obj will be stored in the typer context.obj.
-    3. If this code is imported into another package, that package is responsible for
-    creating the EveAuthManagerSettings object.
+    Args:
+        pydantic_settings: Optional preconfigured environment-backed settings
+            instance. If omitted, a default instance is created.
+
+    Returns:
+        EveAuthManagerSettings with resolved database and logging paths.
+
+    Notes:
+        1. If the CLI is run directly, the settings are initialized in the
+           Typer app callback and stored in typer context.obj.
+        2. If the CLI is imported into another CLI, that CLI initializes the
+           EveAuthManagerSettings object either directly or through an
+           EveAuthManagerSettingsPydantic instance, then stores the result in
+           typer context.obj.
+        3. If this code is imported into another package, that package is
+           responsible for creating the EveAuthManagerSettings object.
     """
     pydantic_settings = pydantic_settings or EveAuthManagerSettingsPydantic()
     return EveAuthManagerSettings(

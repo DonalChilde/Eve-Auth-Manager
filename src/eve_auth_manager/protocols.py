@@ -1,4 +1,4 @@
-"""Protocol for the AuthManager class."""
+"""Protocol and exception types for auth manager implementations."""
 
 from collections.abc import Iterable
 from typing import Annotated, Protocol
@@ -68,7 +68,12 @@ class CharactersNotFoundError(AuthManagerError):
 
 
 class AuthManagerProtocol(Protocol):
-    """Protocol for the AuthManager class."""
+    """Behavioral contract for auth manager implementations.
+
+    Defines the credential, authorized-character, token-refresh,
+    token-revocation, and OAuth metadata access operations expected by the
+    application.
+    """
 
     def get_credential(
         self, *, cred_id: UUID | None = None, cred_name: str | None = None
@@ -178,9 +183,11 @@ class AuthManagerProtocol(Protocol):
     def revoke_characters(
         self, cred_id: UUID, character_ids: set[int] | None = None
     ) -> dict[int, str]:
-        """Revoke all authenticated characters for the given credential ID.
+        """Revoke authorized characters for the given credential ID.
 
-        Also removes the characters from the database.
+        If character_ids is None, revoke all authorized characters associated
+        with the credential. Revoked characters are also removed from
+        persistent storage.
 
         Args:
             cred_id: The ID of the credential.
@@ -196,7 +203,7 @@ class AuthManagerProtocol(Protocol):
         ...
 
     def get_all_characters(self, cred_id: UUID) -> list[AuthorizedCharacter]:
-        """Get all authenticated characters for the given credential ID.
+        """Get all authorized characters for the given credential ID.
 
         Args:
             cred_id: The ID of the credential.
@@ -210,7 +217,7 @@ class AuthManagerProtocol(Protocol):
         ...
 
     def get_all_character_ids(self, cred_id: UUID) -> dict[int, str]:
-        """Get all authenticated character IDs for the given credential ID.
+        """Get all authorized character IDs for the given credential ID.
 
         Args:
             cred_id: The ID of the credential.
@@ -230,12 +237,13 @@ class AuthManagerProtocol(Protocol):
         *,
         min_seconds: Annotated[int, Ge(0), Le(1200)] = 300,
     ) -> AuthorizedCharacter:
-        """Refresh the authenticated character for the given character ID.
+        """Refresh the authorized character for the given character ID.
 
         Args:
             cred_id: The ID of the credential.
             character_id: The ID of the character to refresh.
-            min_seconds: The minimum number of seconds til expiration before refreshing.
+            min_seconds: The minimum number of seconds until expiration before
+                refreshing.
 
         Returns:
             The refreshed AuthorizedCharacter object.
@@ -253,13 +261,17 @@ class AuthManagerProtocol(Protocol):
         *,
         min_seconds: Annotated[int, Ge(0), Le(1200)] = 300,
     ) -> list[AuthorizedCharacter]:
-        """Refresh all authenticated characters for the given credential ID.
+        """Refresh authorized characters for the given credential ID.
+
+        If character_ids is None, refresh all authorized characters associated
+        with the credential.
 
         Args:
             cred_id: The ID of the credential.
             character_ids: The IDs of the characters to refresh. If None, refresh all
                 characters.
-            min_seconds: The minimum number of seconds til expiration before refreshing.
+            min_seconds: The minimum number of seconds until expiration before
+                refreshing.
 
         Returns:
             A list of refreshed AuthorizedCharacter objects.
@@ -271,27 +283,30 @@ class AuthManagerProtocol(Protocol):
 
     @property
     def session(self) -> Client:
-        """Return the session for making HTTP requests.
+        """Return the HTTP client used for outbound requests.
 
         Raises:
-            RuntimeError: If the session is not initialized.
+            RuntimeError: If the implementation has not initialized its HTTP
+                session.
         """
         ...
 
     @property
     def jwks_client(self) -> PyJWKClient:
-        """Return the JWKS client for verifying ESI tokens.
+        """Return the JWKS client used to verify ESI tokens.
 
         Raises:
-            RuntimeError: If the JWKS client is not initialized.
+            RuntimeError: If the implementation has not initialized its JWKS
+                client.
         """
         ...
 
     @property
     def oauth_metadata(self) -> OAuthMetadataTimestamped:
-        """Return the OAuth metadata for ESI.
+        """Return the cached OAuth metadata used by the implementation.
 
         Raises:
-            RuntimeError: If the OAuth metadata is not initialized.
+            RuntimeError: If the implementation has not initialized or loaded
+                OAuth metadata.
         """
         ...

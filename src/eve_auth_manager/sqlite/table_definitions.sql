@@ -1,37 +1,39 @@
--- Table definitions for the Eve Auth Manager database schema.
+-- SQLite schema for Eve Auth Manager persistence.
+-- Stores credential records, authorized character records, and a singleton
+-- cache of OAuth metadata. JSON-like application payloads are stored as TEXT,
+-- and timestamps are stored as INTEGER Unix epoch values.
 
--- This table represents the credentials used to authenticate with the EVE Online SSO.
+-- Stores EVE SSO client credentials managed by the application.
 CREATE TABLE IF NOT EXISTS credentials (
     row_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    cred_id TEXT NOT NULL UNIQUE, -- The unique identifier for the credentials.
-    name TEXT NOT NULL UNIQUE, -- The name associated with the credentials.
-    description TEXT, -- A brief description of the credentials.
-    client_id TEXT NOT NULL, -- The client ID for the EVE Online SSO.
-    client_secret TEXT NOT NULL, -- The client secret for the EVE Online SSO.
-    callback_url TEXT NOT NULL, -- The callback URL for the EVE Online SSO.
-    scopes TEXT NOT NULL, -- The array of scopes requested for the EVE Online SSO as a JSON string.
-    created_at INTEGER NOT NULL -- The timestamp when the credentials were created.
+    cred_id TEXT NOT NULL UNIQUE, -- Application credential identifier.
+    name TEXT NOT NULL UNIQUE, -- Human-readable name associated with the credential.
+    description TEXT, -- Brief description of the credential.
+    client_id TEXT NOT NULL, -- EVE Online SSO client ID.
+    client_secret TEXT NOT NULL, -- EVE Online SSO client secret.
+    callback_url TEXT NOT NULL, -- Registered EVE Online SSO callback URL.
+    scopes TEXT NOT NULL, -- Requested OAuth scopes serialized as a JSON array string.
+    created_at INTEGER NOT NULL -- Creation time as a Unix epoch timestamp.
 );
 
--- This table represents the authorized characters associated with the credentials.
+-- Stores per-character authorization state linked to a credential.
 CREATE TABLE IF NOT EXISTS authorized_characters (
     row_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    cred_id TEXT NOT NULL, -- The unique identifier for the credentials.
-    character_id INTEGER NOT NULL, -- The unique identifier for the character.
-    character_name TEXT NOT NULL, -- The name of the character.
-    expires_at INTEGER NOT NULL, -- The timestamp when the authorization expires.
-    oauth_token TEXT NOT NULL, -- The OAuth token for the character as a JSON string.
+    cred_id TEXT NOT NULL, -- Application credential identifier.
+    character_id INTEGER NOT NULL, -- EVE character identifier.
+    character_name TEXT NOT NULL, -- EVE character name.
+    expires_at INTEGER NOT NULL, -- Authorization expiration as a Unix epoch timestamp.
+    oauth_token TEXT NOT NULL, -- OAuth token payload serialized as a JSON string.
     FOREIGN KEY (cred_id) REFERENCES credentials (cred_id) ON DELETE CASCADE,
-    -- there can only be one cred_id/character_id pair in this table, so we can use a unique constraint to enforce that
+    -- Enforce at most one row per credential/character pair.
     UNIQUE (cred_id, character_id)
 );
 
--- This table represents the OauthMetadata cached for the credentials and characters.
--- There can be only one row in this table, and it will be updated whenever the 
--- OauthMetadata is refreshed.
+-- Stores a singleton cache of OAuth metadata fetched from the provider.
+-- The table is constrained to a single row with row_id = 1.
 CREATE TABLE IF NOT EXISTS oauth_metadata (
-    row_id INTEGER PRIMARY KEY DEFAULT 1, -- There can only be one row in this table.
-    created_at INTEGER NOT NULL, -- The timestamp when the metadata was created.
-    oauth_metadata TEXT NOT NULL -- The OauthMetadata as a JSON string.
-    CONSTRAINT single_row CHECK (row_id = 1) -- Enforce that there can only be one row in this table.
+    row_id INTEGER PRIMARY KEY DEFAULT 1, -- Singleton row identifier.
+    created_at INTEGER NOT NULL, -- Cache creation time as a Unix epoch timestamp.
+    oauth_metadata TEXT NOT NULL, -- Cached OAuth metadata serialized as a JSON string.
+    CONSTRAINT single_row CHECK (row_id = 1) -- Enforce the singleton row invariant.
 );
