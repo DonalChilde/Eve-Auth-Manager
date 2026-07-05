@@ -1,4 +1,4 @@
-"""Command to output an AuthorizedDict."""
+"""CLI command for refreshing an authorized character and emitting an AuthorizedDict."""
 
 from pathlib import Path
 from typing import Annotated, NotRequired, TypedDict
@@ -51,8 +51,7 @@ def authorize(
         Path | None,
         typer.Option(
             "--from",
-            help="Path to a file containing a JSON string of the arguments to pass to the "
-            "authorize_character method. If `-` is provided, the JSON string will be read from stdin.",
+            help="Path to a JSON object with authorize arguments. Use '-' to read JSON from stdin.",
             dir_okay=False,
             readable=True,
             allow_dash=True,
@@ -62,7 +61,7 @@ def authorize(
         Path,
         typer.Option(
             "--to",
-            help="Path to a file to write the AuthorizedDict JSON. Defaults to stdout.",
+            help="Output path for AuthorizedDict JSON. Use '-' to write to stdout.",
             dir_okay=False,
             writable=True,
             allow_dash=True,
@@ -71,13 +70,15 @@ def authorize(
     cred_id: Annotated[
         UUID | None,
         typer.Option(
-            "--cred-id", help="ID of the credentials to use for authorization"
+            "--cred-id",
+            help="Credential ID to use. Takes precedence over --cred-name.",
         ),
     ] = None,
     cred_name: Annotated[
         str | None,
         typer.Option(
-            "--cred-name", help="Name of the credentials to use for authorization"
+            "--cred-name",
+            help="Credential name to use when --cred-id is not provided.",
         ),
     ] = None,
     character_id: Annotated[
@@ -114,29 +115,45 @@ def authorize(
         ),
     ] = False,
 ) -> None:
-    """Refresh a character and output an AuthorizedDict.
+    """Refresh an authorized character and output an AuthorizedDict JSON payload.
 
-    This command can get arguments from:
-    1. Command line arguments
-    2. A JSON file specified with the `--from` option
-    3. A JSON string read from stdin if `--from -` is specified
+    Combines arguments from CLI options and an optional JSON input source,
+    refreshes the selected character if needed, and emits the
+    authorization payload.
 
-    Command line arguments take precedence over JSON file or stdin arguments.
-    If both `--cred_id` and `--cred_name` are provided, `--cred_id` takes precedence.
-    A complete set of arguments must be provided from the various sources.
+    Input:
+        Arguments may be provided by CLI options and optionally by --from JSON.
+        The --from JSON object supports these fields:
 
-    The json_args file or stdin can contain any of the following fields:
-    - cred_id: The ID of the credentials to use for authorization.
-    - cred_name: The name of the credentials to use for authorization.
-    - character_id: The ID of the character to authorize.
-    - min_seconds: The minimum number of seconds remaining on the access token before it will be refreshed.
+        cred_id: Credential UUID to use for authorization.
+        cred_name: Credential name to use when cred_id is not provided.
+        character_id: Character ID to authorize.
+        min_seconds: Minimum token lifetime required before refresh.
 
-    Outputs a json dictionary containing the following fields:
-    - cred_id: The ID of the credentials used for authorization.
-    - character_id: The ID of the character that was authorized.
-    - character_name: The name of the character that was authorized.
-    - access_token: The access token for the character.
-    - expires_at: The timestamp of when the access token will expire, in seconds since the epoch.
+    Notes:
+        1. At least one of --cred-id or --cred-name must be provided.
+        2. CLI option values take precedence over values loaded from JSON
+           input.
+        3. Validation is performed after combining the JSON and CLI argument
+           sources.
+        4. If both --cred-id and --cred-name are provided, --cred-id takes
+           precedence.
+
+    Output:
+        Emits an AuthorizedDict JSON object. The payload is written to stdout
+        when --to - is used, otherwise it is written to the requested file.
+
+        AuthorizedDict fields:
+            cred_id: String form of the credential UUID used for the
+                authorization.
+            character_id: Numeric EVE character ID associated with the access
+                token.
+            character_name: Human-readable EVE character name associated with
+                the access token.
+            access_token: Bearer token value that can be used for authorized
+                ESI requests.
+            expires_at: Unix epoch timestamp, in seconds, when the access
+                token expires.
     """
     if quiet:
         messenger = Console(stderr=True, quiet=True)

@@ -1,4 +1,4 @@
-"""Command to display information about the currently stored credentials as markdown."""
+"""CLI command for displaying stored credentials in summary or detailed form."""
 
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -32,8 +32,8 @@ class CredentialDetails:
 
 
 def detailed_display(credential_details: CredentialDetails) -> str:
-    """Return a detailed display of the credentials as markdown."""
-    table = MarkdownTable(headers=["Field", "Value"], newline_replacement="<br>")
+    """Return a markdown report for one credential with full field details."""
+    table = MarkdownTable(headers=["Field", "Value"])
     credentials = credential_details.auth_credentials
 
     table_rows: list[list[Any]] = []
@@ -53,13 +53,12 @@ def detailed_display(credential_details: CredentialDetails) -> str:
     return mdformat_text(report_string, extensions=["tables"])
 
 
-def display_credientials_summary(
+def display_credentials_summary(
     credential_details: Iterable[CredentialDetails],
 ) -> str:
-    """Return a summary display of the credentials as markdown."""
+    """Return a markdown summary table for multiple stored credentials."""
     table = MarkdownTable(
-        headers=["cred_id", "name", "description", "authorized_character_count"],
-        newline_replacement="<br>",
+        headers=["cred_id", "name", "description", "authorized_character_count"]
     )
     for details in credential_details:
         credentials = details.auth_credentials
@@ -83,7 +82,7 @@ def display(
         UUID | None,
         typer.Option(
             "--cred-id",
-            help="ID of the credentials to display.If provided, display detailed "
+            help="ID of the credentials to display. If provided, display detailed "
             "information for the specified credentials. If neither --cred-id nor --cred-name "
             "is provided, a summary of all credentials will be displayed.",
         ),
@@ -127,7 +126,22 @@ def display(
         ),
     ] = False,
 ) -> None:
-    """Display the currently stored credentials."""
+    """Display stored credentials as markdown output.
+
+    Shows either:
+    1. A detailed report for a selected credential (--cred-id or --cred-name), or
+    2. A summary table for all credentials when no selector is provided.
+
+    Notes:
+        1. If both --cred-id and --cred-name are provided, --cred-id takes
+           precedence.
+        2. Use --plain to emit plain markdown text instead of Rich-rendered
+           markdown.
+        3. Use --to <path> to write output to a file; otherwise output is
+           shown on stdout.
+        4. If no credentials exist, the command exits successfully after
+           showing a notice.
+    """
     if quiet:
         messenger = Console(stderr=True, quiet=True)
     else:
@@ -138,7 +152,7 @@ def display(
         if not credentials:
             messenger.print("[yellow]No credentials found in the database.[/yellow]")
             raise typer.Exit(0)
-        output = display_credientials_summary(credentials)
+        output = display_credentials_summary(credentials)
     else:
         output = detailed_display(credentials)
     if not file_path:
@@ -159,6 +173,12 @@ def display(
 def _get_credentials_details(
     db_path: Path, cred_id: UUID | None, cred_name: str | None
 ) -> CredentialDetails | list[CredentialDetails]:
+    """Fetch credential display details for one credential or all credentials.
+
+    If cred_id is provided, it is used for lookup. Otherwise cred_name is used
+    when provided. If neither selector is provided, details for all credentials
+    are returned.
+    """
     with SqliteAuthManager(db_path) as auth_manager:
         if cred_id is not None:
             credentials = auth_manager.get_credential(cred_id=cred_id)

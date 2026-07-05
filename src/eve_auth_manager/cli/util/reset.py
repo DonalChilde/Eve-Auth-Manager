@@ -1,7 +1,4 @@
-"""Command to completely reset the auth database, removing all stored credentials and characters.
-
-This also removes the database file itself, and recreates it with the correct schema.
-"""
+"""Destructive CLI command for deleting and recreating the auth database."""
 
 from typing import Annotated
 
@@ -13,7 +10,7 @@ from eve_auth_manager.sqlite.manager import SqliteAuthManager
 
 app = typer.Typer(
     no_args_is_help=True,
-    help="Reset the auth database, removing all stored credentials and characters.",
+    help="Delete and recreate the auth database, removing all stored credentials and characters.",
 )
 
 
@@ -25,7 +22,7 @@ def reset_database(
         typer.Option(
             "--force",
             "-f",
-            help="Force the reset without confirmation.",
+            help="Skip confirmation and reset immediately.",
         ),
     ] = False,
     quiet: Annotated[
@@ -33,11 +30,23 @@ def reset_database(
         typer.Option(
             "--quiet",
             "-q",
-            help="Suppress output messages.",
+            help="Suppress output messages. Requires --force.",
         ),
     ] = False,
 ) -> None:
-    """Reset the auth database, removing all stored credentials and characters."""
+    """Delete and recreate the auth database after optional confirmation.
+
+    Notes:
+        1. When force is false, the command prompts before deleting and
+           recreating the database.
+        2. The database file is removed and then recreated through
+           SqliteAuthManager to verify that schema initialization succeeds.
+        3. In both forced and prompted paths, all stored credentials and
+           authorized characters are permanently removed.
+        4. Using --quiet without --force raises typer.BadParameter.
+    """
+    # The standalone CLI callback stores EveAuthManagerSettings in
+    # typer.Context.obj under the eve-auth-manager-settings key.
     if quiet and not force:
         raise typer.BadParameter(
             "Cannot use --quiet without --force. Use --force to reset the database without confirmation."
@@ -46,7 +55,6 @@ def reset_database(
         messenger = Console(stderr=True, quiet=True)
     else:
         messenger = Console(stderr=True)
-    # stdout = Console()
     settings = get_auth_manager_settings_from_context(ctx)
     db_path = settings.auth_db_path
     if force:

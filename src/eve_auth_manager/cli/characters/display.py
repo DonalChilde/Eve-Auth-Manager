@@ -1,4 +1,4 @@
-"""Command to display information about the currently stored credentials as markdown."""
+"""CLI command for displaying stored authorized characters as markdown."""
 
 from collections.abc import Iterable
 from dataclasses import fields
@@ -20,21 +20,11 @@ from eve_auth_manager.sqlite.manager import SqliteAuthManager
 app = typer.Typer(no_args_is_help=True, help="Display the currently stored characters.")
 
 
-# def _format_markdown_table_value(value: object) -> str:
-#     """Return a table-safe markdown representation of a value."""
-#     text = str(value)
-#     if not text:
-#         return "-"
-#     return text.replace("|", r"\|").replace("\n", "<br>")
-
-
-# def _character_expires_in(character: AuthorizedCharacter) -> int:
-#     """Return the number of seconds until the character token expires."""
-#     return character.expires_in
-
-
 def detailed_display(character: AuthorizedCharacter) -> str:
-    """Return a detailed display of the character as markdown."""
+    """Render one character as a formatted markdown details table.
+
+    The output includes all model fields plus a computed expires_in row.
+    """
     table = MarkdownTable(headers=["Field", "Value"])
     for field_info in fields(character):
         value = getattr(character, field_info.name)
@@ -48,7 +38,7 @@ def detailed_display(character: AuthorizedCharacter) -> str:
 def display_characters_summary(
     characters: Iterable[AuthorizedCharacter],
 ) -> str:
-    """Return a summary display of the characters as markdown."""
+    """Render a markdown summary table for multiple characters."""
     table = MarkdownTable(
         headers=["character_id", "character_name", "cred_id", "expires_in"],
     )
@@ -73,46 +63,43 @@ def display(
         UUID | None,
         typer.Option(
             "--cred-id",
-            help="ID of the credentials to use. If both --cred-id and --cred-name are "
-            "provided, --cred-id will take precedence.",
+            help="Credential ID to use. One of --cred-id or --cred-name is required."
+            " Takes precedence over --cred-name.",
         ),
     ] = None,
     cred_name: Annotated[
         str | None,
         typer.Option(
             "--cred-name",
-            help="Name of the credentials to use. If both --cred-id and --cred-name are "
-            "provided, --cred-id will take precedence.",
+            help="Credential name to use when --cred-id is not provided.",
         ),
     ] = None,
     character_id: Annotated[
         int | None,
         typer.Argument(
-            help="ID of the character to display. If provided, display detailed "
-            "information for the specified character. If not provided, a summary of "
-            "all characters will be displayed.",
+            help="Optional character ID to display. If omitted, a summary of all"
+            " characters for the selected credential is shown.",
         ),
     ] = None,
     file_path: Annotated[
         Path | None,
         typer.Option(
             "--to",
-            help="Path to the file to write the output to. If not provided, output will "
-            "be printed to stdout.",
+            help="Output path for markdown results. Omit to print to stdout.",
         ),
     ] = None,
     plain: Annotated[
         bool,
         typer.Option(
             "--plain",
-            help="If set, output will be plain text instead of Rich markdown.",
+            help="Print plain markdown text instead of Rich-rendered markdown.",
         ),
     ] = False,
     overwrite: Annotated[
         bool,
         typer.Option(
             "--overwrite",
-            help="If set, will overwrite the output file if it already exists.",
+            help="Overwrite the output file if it already exists.",
         ),
     ] = False,
     quiet: Annotated[
@@ -123,7 +110,24 @@ def display(
         ),
     ] = False,
 ) -> None:
-    """Display the currently stored characters."""
+    """Display authorized characters for the selected credential.
+
+    Notes:
+        1. One of --cred-id or --cred-name must be provided.
+        2. If both --cred-id and --cred-name are provided, --cred-id takes
+           precedence.
+        3. If character_id is provided, the command outputs a detailed view for
+           that character.
+        4. If character_id is omitted, the command outputs a summary table for
+           all characters under the selected credential.
+        5. If no characters are found for summary mode, the command exits
+           successfully after printing a notice.
+
+    Output:
+        Emits markdown either to stdout (default) or to --to file path. By
+        default, stdout output is rendered with Rich markdown. Use --plain to
+        emit plain markdown text.
+    """
     if quiet:
         messenger = Console(stderr=True, quiet=True)
     else:

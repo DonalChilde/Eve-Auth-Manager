@@ -1,4 +1,4 @@
-"""CLI command to revoke a character's access token."""
+"""CLI command for revoking one or more authorized characters."""
 
 from typing import Annotated
 from uuid import UUID
@@ -19,24 +19,23 @@ def revoke(
         UUID | None,
         typer.Option(
             "--cred-id",
-            help="ID of the credentials to use. If both --cred-id and --cred-name are "
-            "provided, --cred-id will take precedence.",
+            help="Credential ID to use. One of --cred-id or --cred-name is required."
+            " Takes precedence over --cred-name.",
         ),
     ] = None,
     cred_name: Annotated[
         str | None,
         typer.Option(
             "--cred-name",
-            help="Name of the credentials to use. If both --cred-id and --cred-name are "
-            "provided, --cred-id will take precedence.",
+            help="Credential name to use when --cred-id is not provided.",
         ),
     ] = None,
     character_id: Annotated[
         list[int] | None,
         typer.Option(
             "--character-id",
-            help="ID of the character to revoke. Can be specified multiple times. If "
-            "not provided, all characters will be revoked.",
+            help="Authorized character ID to revoke. Repeat for multiple IDs. If omitted,"
+            " all authorized characters for the selected credential are revoked.",
         ),
     ] = None,
     quiet: Annotated[
@@ -46,11 +45,25 @@ def revoke(
         bool,
         typer.Option(
             "--force",
-            help="Do not prompt for confirmation before revoking characters.",
+            help="Skip confirmation prompt before revocation.",
         ),
     ] = False,
 ) -> None:
-    """Revoke a character's access token."""
+    """Revoke one or more authorized characters for a credential.
+
+    Notes:
+        1. One of --cred-id or --cred-name must be provided.
+        2. If both --cred-id and --cred-name are provided, --cred-id takes
+           precedence.
+        3. If --character-id is omitted, all authorized characters for the
+           selected credential are targeted.
+        4. Without --force, the command prompts for confirmation before
+           revocation.
+
+    Outcome:
+        Prints the list of revoked character IDs and names. If nothing is
+        revoked, the command exits successfully with a warning message.
+    """
     if quiet:
         messenger = Console(stderr=True, quiet=True)
     else:

@@ -1,4 +1,4 @@
-"""CLI command to add a character to the auth manager."""
+"""CLI command for authorizing and adding a character token."""
 
 import webbrowser
 from typing import Annotated
@@ -15,34 +15,45 @@ from eve_auth_manager.auth.request_authentication_code import (
 from eve_auth_manager.cli.helpers import get_auth_manager_settings_from_context
 from eve_auth_manager.sqlite.manager import SqliteAuthManager
 
-app = typer.Typer(no_args_is_help=True)
+app = typer.Typer(no_args_is_help=True, help="Authorize and add a character.")
 
 
 @app.command(name="add")
 def add(
     ctx: typer.Context,
-    character_id: Annotated[int, typer.Argument(help="ID of the character to add")],
+    character_id: Annotated[
+        int,
+        typer.Argument(
+            help="Character ID expected from the authorization flow.",
+        ),
+    ],
     cred_id: Annotated[
         UUID | None,
         typer.Option(
             "--cred-id",
-            help="ID of the credentials to use. If both --cred-id and --cred-name are "
-            "provided, --cred-id will take precedence.",
+            help="Credential ID to use. One of --cred-id or --cred-name is required."
+            " Takes precedence over --cred-name.",
         ),
     ] = None,
     cred_name: Annotated[
         str | None,
         typer.Option(
             "--cred-name",
-            help="Name of the credentials to use. If both --cred-id and --cred-name are "
-            "provided, --cred-id will take precedence.",
+            help="Credential name to use when --cred-id is not provided.",
         ),
     ] = None,
     browser_auto_open: Annotated[
-        bool, typer.Option(help="Whether to automatically open the browser.")
+        bool,
+        typer.Option(
+            help="Automatically open the authorization URL in your default browser.",
+        ),
     ] = True,
     server_timeout: Annotated[
-        int, typer.Option("--timeout", help="Seconds to wait for authentication code.")
+        int,
+        typer.Option(
+            "--timeout",
+            help="Seconds to wait for the authentication code before the command fails.",
+        ),
     ] = 120,
     quiet: Annotated[
         bool,
@@ -52,7 +63,24 @@ def add(
         ),
     ] = False,
 ) -> None:
-    """Add a character."""
+    """Authorize and add one character for the selected credential.
+
+    Notes:
+        1. One of --cred-id or --cred-name must be provided.
+        2. If both --cred-id and --cred-name are provided, --cred-id takes
+           precedence.
+        3. The command opens an authorization URL unless browser auto-open is
+           disabled or unavailable.
+        4. If no authentication code is received before --timeout, the command
+           exits with an error.
+        5. The returned token is validated and must match character_id.
+        6. If the character is already authorized for the selected credential,
+           the command exits successfully without changes.
+
+    Outcome:
+        On success, stores the authorized character token and prints the
+        character ID, character name, and credential ID.
+    """
     if quiet:
         messenger = Console(stderr=True, quiet=True)
     else:

@@ -1,4 +1,4 @@
-"""CLI command to add credentials to the auth manager."""
+"""CLI command for adding ESI application credentials from JSON input."""
 
 from pathlib import Path
 from typing import Annotated
@@ -38,12 +38,34 @@ def add_credentials(
         ),
     ] = False,
 ) -> None:
-    """Add credentials.
+    """Add one ESI application credential from JSON input.
 
-    Fails if credentials already exist.
+    Reads credential JSON from --from <path> or from stdin when --from - is
+    used, validates the payload against the EsiAppCredential schema, and
+    stores the credential in the auth database.
+
+        The credential JSON is available from the EVE Developers site when
+        creating a new ESI application:
+        https://developers.eveonline.com/applications
+
+        The JSON payload must use these exact field names:
+
+        {
+            "name": "My ESI App",
+            "description": "Optional human-readable description",
+            "clientId": "your_client_id",
+            "clientSecret": "your_client_secret",
+            "callbackUrl": "http://localhost:8080/callback",
+            "scopes": ["scope1", "scope2"]
+        }
+
+
+    Notes:
+        1. Input must be a JSON object matching the ESI app credential shape.
+        2. The command fails if a conflicting credential already exists.
+        3. On success, a status message includes the credential name and
+           generated credential ID unless quiet mode is active.
     """
-    if credentials_file == Path("-"):
-        quiet = True  # Force quiet mode when reading from stdin
     if quiet:
         messenger = Console(stderr=True, quiet=True)
     else:

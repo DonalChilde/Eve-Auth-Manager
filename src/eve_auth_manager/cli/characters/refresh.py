@@ -1,4 +1,4 @@
-"""Command to refresh one or more character access tokens."""
+"""CLI command for refreshing authorized character access tokens."""
 
 from typing import Annotated
 from uuid import UUID
@@ -18,32 +18,32 @@ def refresh(
     cred_id: Annotated[
         UUID | None,
         typer.Option(
+            "--cred-id",
             "--cred_id",
-            help="ID of the credentials to use. If both --cred_id and --cred_name are "
-            "provided, --cred_id will take precedence.",
+            help="Credential ID to use. One of --cred-id or --cred-name is required."
+            " Takes precedence over --cred-name.",
         ),
     ] = None,
     cred_name: Annotated[
         str | None,
         typer.Option(
+            "--cred-name",
             "--cred_name",
-            help="Name of the credentials to use. If both --cred_id and --cred_name are "
-            "provided, --cred_id will take precedence.",
+            help="Credential name to use when --cred-id is not provided.",
         ),
     ] = None,
     character_id: Annotated[
         int | None,
         typer.Argument(
-            help="ID of the character to refresh the token for. If not provided, all "
-            "characters will be refreshed."
+            help="Optional character ID to refresh. If omitted, all authorized"
+            " characters for the selected credential are refreshed."
         ),
     ] = None,
     min_seconds: Annotated[
         int,
         typer.Option(
             "--min-seconds",
-            help="Minimum number of seconds remaining on the access token before it will "
-            "be refreshed.",
+            help="Refresh only when token lifetime is below this many seconds.",
         ),
     ] = 300,
     quiet: Annotated[
@@ -54,7 +54,24 @@ def refresh(
         ),
     ] = False,
 ) -> None:
-    """Refresh a character's access token."""
+    """Refresh access tokens for one or more authorized characters.
+
+    Notes:
+        1. One of --cred-id or --cred-name must be provided.
+        2. If both --cred-id and --cred-name are provided, --cred-id takes
+           precedence.
+        3. If character_id is omitted, all authorized characters for the
+           selected credential are refreshed.
+        4. Character refresh is skipped when the token lifetime is greater than
+           or equal to --min-seconds.
+        5. Maximum token lifetime is 20 minutes (1200 seconds). If --min-seconds is
+           greater than 1200, the command will always refresh the token.
+
+    Outcome:
+        Prints the list of refreshed characters. If no authorized characters are
+        found for the selected credential, the command exits successfully with a
+        warning message.
+    """
     if quiet:
         messenger = Console(stderr=True, quiet=True)
     else:
@@ -67,7 +84,7 @@ def refresh(
             credentials = auth_manager.get_credential(cred_name=cred_name)
         else:
             messenger.print(
-                "[red]Either --cred_id or --cred_name must be provided.[/red]"
+                "[red]Either --cred-id or --cred-name must be provided.[/red]"
             )
             raise typer.Exit(1)
         if character_id is not None:

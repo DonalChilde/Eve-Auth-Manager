@@ -1,4 +1,4 @@
-"""Command to search EVE Online for a character's ID, by name."""
+"""Command to search EVE Online entity IDs by name."""
 
 import json
 from pathlib import Path
@@ -10,28 +10,26 @@ from rich.console import Console
 from eve_auth_manager.helpers.http_session_factory import client_manager
 from eve_auth_manager.helpers.save_text_file import save_text_file
 
-app = typer.Typer(no_args_is_help=True, help="Search for an EVE Online entity by name.")
+app = typer.Typer(no_args_is_help=True, help="Search EVE Online entity IDs by name.")
 
 SEARCH_ENDPOINT = "https://esi.evetech.net/universe/ids"
-"""A constant for the ESI search POST endpoint URL."""
+"""ESI universe IDs lookup endpoint."""
 
 
 @app.command(name="search")
 def search(
-    ctx: typer.Context,
     search_strings: Annotated[
         list[str],
         typer.Option(
             "--search",
-            help="The exact name of the entity to search for. Can be used multiple times.",
+            help="Exact entity name to search. Repeat for multiple names.",
         ),
     ],
     file_path: Annotated[
         Path,
         typer.Option(
             "--to",
-            help="Path to the file to write the output to. If not provided, output will "
-            "be printed to stdout.",
+            help="Output path for JSON results. Use '-' to write to stdout.",
             dir_okay=False,
             writable=True,
             allow_dash=True,
@@ -41,7 +39,7 @@ def search(
         bool,
         typer.Option(
             "--plain",
-            help="If set, stdout output will be plain text instead of Rich JSON.",
+            help="When writing to stdout, emit plain JSON text instead of Rich output.",
         ),
     ] = False,
     indent: Annotated[
@@ -56,7 +54,7 @@ def search(
         bool,
         typer.Option(
             "--overwrite",
-            help="If set, will overwrite the output file if it already exists.",
+            help="Overwrite the output file if it already exists.",
         ),
     ] = False,
     quiet: Annotated[
@@ -67,20 +65,23 @@ def search(
         ),
     ] = False,
 ) -> None:
-    """Search for a character's ID by name.
+    """Search EVE Online entity IDs by exact names.
 
-    Performs a case-insensitive exact match search for EVE Online entities (characters,
-    corporations, alliances, etc.) by name using the ESI search endpoint. The results
-    will include the entity's ID and type.
+    Queries the ESI universe IDs endpoint and returns JSON grouped by entity
+    type.
 
-    Example usage:
-        eve-auth-manager characters search --search "tritanium"
+    Example:
+        uv run eve-auth characters search --search Tritanium
 
-    Results in a json response of
+    Output shape:
+        {
+            "characters": [{"id": 243070982, "name": "Tritanium"}],
+            "inventory_types": [{"id": 34, "name": "Tritanium"}]
+        }
 
-    {'characters': [{'id': 243070982, 'name': 'Tritanium'}], 'inventory_types': [{'id': 34, 'name': 'Tritanium'}]}
-
-
+    Notes:
+        1. Matching is exact but case-insensitive, as defined by ESI.
+        2. Result keys vary based on matching entity types.
     """
     if quiet:
         messenger = Console(stderr=True, quiet=True)

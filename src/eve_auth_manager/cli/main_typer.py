@@ -1,13 +1,13 @@
-"""Main entry point for the ESI Auth Manager CLI.
+"""Standalone Typer entry point for Eve Auth Manager.
 
-NOTE: This is only used when the auth manager is run as a standalone application.
-It is not used when the auth manager is used as a library by a third party,
-or when the cli commands are run as part of a different cli program.
+Initializes application settings and logging when the packaged CLI is run
+directly.
 
-When used as part of another cli program, that program must ensure that the
-AuthManagerSettings are properly initialized and placed in the typer context.obj under
-the "esi-auth-manager-settings" key.
-
+Notes:
+    This module is only used for the standalone CLI entry point. When the
+    commands are embedded in another Typer application, that application is
+    responsible for initializing EveAuthManagerSettings and storing them in
+    typer.Context.obj under the eve-auth-manager-settings key.
 """
 
 import logging
@@ -26,10 +26,16 @@ from eve_auth_manager.settings import get_settings
 logger = logging.getLogger(__name__)
 
 
-def default_options(ctx: typer.Context):
-    """Esi Auth Manager Command Line Interface.
+def default_options(ctx: typer.Context) -> None:
+    """Initialize settings and logging for standalone CLI execution.
 
-    Insert pithy saying here
+    Args:
+        ctx: Typer command context used to store shared application settings
+            for downstream subcommands.
+
+    Notes:
+        The resolved EveAuthManagerSettings object is stored in ctx.obj under
+        the eve-auth-manager-settings key.
     """
     settings = get_settings()
     setup_logging(log_dir=settings.logging_directory)

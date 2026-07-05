@@ -1,4 +1,4 @@
-"""Helpers for the auth_manager CLI."""
+"""Shared CLI helpers for resolving settings and reading stdin input."""
 
 import sys
 from typing import cast
@@ -9,14 +9,34 @@ from eve_auth_manager.settings import EveAuthManagerSettings
 
 
 def get_auth_manager_settings_from_context(ctx: Context) -> EveAuthManagerSettings:
-    """Helper function to get the auth_manager settings from the Typer context."""
+    """Return EveAuthManagerSettings stored in the Typer context.
+
+    Args:
+        ctx: Typer command context whose obj mapping should contain the
+            initialized Eve Auth Manager settings.
+
+    Returns:
+        EveAuthManagerSettings stored under the eve-auth-manager-settings key.
+
+    Raises:
+        ValueError: If the context does not contain initialized Eve Auth
+            Manager settings.
+    """
     if ctx.obj is None or "eve-auth-manager-settings" not in ctx.obj:
         raise ValueError("Auth Manager settings not found in context.")
     return cast(EveAuthManagerSettings, ctx.obj["eve-auth-manager-settings"])
 
 
 def get_stdin() -> str:
-    """Read from stdin until EOF and return the content as a string."""
+    """Read piped or redirected stdin content until EOF.
+
+    Returns:
+        Full stdin content as a string.
+
+    Raises:
+        ValueError: If stdin is attached to an interactive terminal instead
+            of a pipe or redirected input source.
+    """
     if sys.stdin.isatty():
         raise ValueError("Error: provide a file path or pipe data via stdin.")
     return sys.stdin.read()
