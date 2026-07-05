@@ -31,7 +31,7 @@ def remove_credentials(
         messenger = Console(stderr=True)
     settings = get_auth_manager_settings_from_context(ctx)
     with SqliteAuthManager(settings.auth_db_path) as auth_manager:
-        removed = auth_manager.remove_credentials(cred_id)
+        removed = auth_manager.remove_credential(cred_id)
         removed_cred_id = next(iter(removed))
     messenger.print(
         f"Credentials with ID {removed_cred_id} - {removed[removed_cred_id]} have been removed."

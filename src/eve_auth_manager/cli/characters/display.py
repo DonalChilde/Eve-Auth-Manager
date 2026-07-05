@@ -73,11 +73,21 @@ def display_characters_summary(
 def display(
     ctx: typer.Context,
     cred_id: Annotated[
-        UUID,
-        typer.Argument(
-            help="ID of the credentials to use.",
+        UUID | None,
+        typer.Option(
+            "--cred_id",
+            help="ID of the credentials to use. If both --cred_id and --cred_name are "
+            "provided, --cred_id will take precedence.",
         ),
-    ],
+    ] = None,
+    cred_name: Annotated[
+        str | None,
+        typer.Option(
+            "--cred_name",
+            help="Name of the credentials to use. If both --cred_id and --cred_name are "
+            "provided, --cred_id will take precedence.",
+        ),
+    ] = None,
     character_id: Annotated[
         int | None,
         typer.Argument(
@@ -121,23 +131,31 @@ def display(
         messenger = Console(stderr=True, quiet=True)
     else:
         messenger = Console(stderr=True)
-    stdout = Console()
     settings = get_auth_manager_settings_from_context(ctx)
     with SqliteAuthManager(settings.auth_db_path) as auth_manager:
+        if cred_id is not None:
+            credentials = auth_manager.get_credential(cred_id=cred_id)
+        elif cred_name is not None:
+            credentials = auth_manager.get_credential(cred_name=cred_name)
+        else:
+            messenger.print(
+                "[red]Either --cred_id or --cred_name must be provided.[/red]"
+            )
+            raise typer.Exit(1)
         if character_id is not None:
-            character = auth_manager.get_character(cred_id, character_id)
+            character = auth_manager.get_character(credentials.cred_id, character_id)
             output = detailed_display(character)
         else:
-            characters = auth_manager.get_all_characters(cred_id)
+            characters = auth_manager.get_all_characters(credentials.cred_id)
             if not characters:
                 messenger.print("[yellow]No characters found in the database.[/yellow]")
                 raise typer.Exit(0)
             output = display_characters_summary(characters)
         if not file_path:
             if plain:
-                stdout.print(output)
+                print(output)
             else:
-                stdout.print(Markdown(output))
+                messenger.print(Markdown(output))
         else:
             output_path = save_text_file(
                 text=output,

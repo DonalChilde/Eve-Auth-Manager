@@ -7,13 +7,13 @@ from uuid import UUID
 import typer
 from rich.console import Console
 
+from eve_auth_manager.auth import token_tools
 from eve_auth_manager.auth.request_authentication_code import (
     generate_request_params,
     start_web_server_and_listen_for_code,
 )
 from eve_auth_manager.cli.helpers import get_auth_manager_settings_from_context
 from eve_auth_manager.sqlite.manager import SqliteAuthManager
-from eve_auth_manager.token_tool import TokenTool
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -21,32 +21,66 @@ app = typer.Typer(no_args_is_help=True)
 @app.command(name="add")
 def add(
     ctx: typer.Context,
-    cred_id: Annotated[UUID, typer.Argument(help="ID of the credentials to use")],
     character_id: Annotated[int, typer.Argument(help="ID of the character to add")],
+    cred_id: Annotated[
+        UUID | None,
+        typer.Option(
+            "--cred_id",
+            help="ID of the credentials to use. If both --cred_id and --cred_name are "
+            "provided, --cred_id will take precedence.",
+        ),
+    ] = None,
+    cred_name: Annotated[
+        str | None,
+        typer.Option(
+            "--cred_name",
+            help="Name of the credentials to use. If both --cred_id and --cred_name are "
+            "provided, --cred_id will take precedence.",
+        ),
+    ] = None,
     browser_auto_open: Annotated[
         bool, typer.Option(help="Whether to automatically open the browser.")
     ] = True,
     server_timeout: Annotated[
         int, typer.Option("--timeout", help="Seconds to wait for authentication code.")
     ] = 120,
+    quiet: Annotated[
+        bool,
+        typer.Option(
+            "--quiet",
+            help="Suppress output messages.",
+        ),
+    ] = False,
 ) -> None:
     """Add a character."""
-    messenger = Console(stderr=True)
+    if quiet:
+        messenger = Console(stderr=True, quiet=True)
+    else:
+        messenger = Console(stderr=True)
     settings = get_auth_manager_settings_from_context(ctx)
     with SqliteAuthManager(settings.auth_db_path) as auth_manager:
-        credentials = auth_manager.get_credential(cred_id)
-        character_ids = auth_manager.get_all_character_ids(cred_id)
-        oauth_metadata = auth_manager.get_oauth_metadata()
+        if cred_id is not None:
+            credentials = auth_manager.get_credential(cred_id=cred_id)
+        elif cred_name is not None:
+            credentials = auth_manager.get_credential(cred_name=cred_name)
+        else:
+            messenger.print(
+                "[red]Either --cred_id or --cred_name must be provided.[/red]"
+            )
+            raise typer.Exit(1)
+        character_ids = auth_manager.get_all_character_ids(credentials.cred_id)
+        oauth_metadata = auth_manager.oauth_metadata
         if character_id in character_ids:
             messenger.print(
-                f"[yellow]Character ID {character_id} is already authorized with credentials ID {cred_id}.[/yellow]"
+                f"[yellow]Character ID {character_id} is already authorized with "
+                f"credentials ID {credentials.cred_id}.[/yellow]"
             )
             raise typer.Exit(0)
-        token_tool = TokenTool(oauth_metadata)
+
         request_params = generate_request_params(
             client_id=credentials.clientId,
             callback_url=credentials.callbackUrl,
-            authorization_endpoint=token_tool.authorization_endpoint,
+            authorization_endpoint=oauth_metadata.authorization_endpoint,
             scopes=credentials.scopes,
         )
         if browser_auto_open:
@@ -73,14 +107,22 @@ def add(
             raise typer.Exit(1)
         messenger.print("Received authentication code, exchanging for token...")
 
-        oauth_token = token_tool.request_new_token(
+        oauth_token = token_tools.request_new_token(
+            session=auth_manager.session,
             client_id=credentials.clientId,
             authorization_code=authorization_code,
             code_verifier=request_params.code_verifier,
-            session=auth_manager.session,
+            oauth_metadata=oauth_metadata,
         )
-        character_token = token_tool.create_character_token(
-            cred_id=cred_id, oauth_token=oauth_token
+        validated_token = token_tools.validate_token(
+            access_token=oauth_token.access_token,
+            jwks_client=auth_manager.jwks_client,
+            oauth_metadata=oauth_metadata,
+        )
+        character_token = token_tools.create_character_token(
+            cred_id=credentials.cred_id,
+            oauth_token=oauth_token,
+            validated_token=validated_token,
         )
         if character_token.character_id != character_id:
             messenger.print(
@@ -88,8 +130,10 @@ def add(
                 f"but expected {character_id}.[/red]"
             )
             raise typer.Exit(1)
-        auth_manager.add_character(cred_id=cred_id, character=character_token)
+        auth_manager.add_character(
+            cred_id=credentials.cred_id, character=character_token
+        )
         messenger.print(
-            f"[green]Successfully added character ID {character_id} with credentials ID "
-            f"{cred_id}.[/green]"
+            f"[green]Successfully added {character_id} - {character_token.character_name} with credentials ID "
+            f"{credentials.cred_id}.[/green]"
         )

@@ -5,11 +5,14 @@ from typing import Annotated, Protocol
 from uuid import UUID
 
 from annotated_types import Ge, Le
+from httpx2 import Client
+from jwt import PyJWKClient
 
 from eve_auth_manager.models import (
     AuthCredential,
     AuthorizedCharacter,
     EsiAppCredential,
+    OAuthMetadataTimestamped,
 )
 
 
@@ -68,7 +71,7 @@ class AuthManagerProtocol(Protocol):
     """Protocol for the AuthManager class."""
 
     def get_credential(
-        self, cred_id: UUID | None = None, cred_name: str | None = None
+        self, *, cred_id: UUID | None = None, cred_name: str | None = None
     ) -> AuthCredential:
         """Get the credential for the given ID.
 
@@ -263,5 +266,32 @@ class AuthManagerProtocol(Protocol):
 
         Raises:
             CredentialNotFoundError: If the credential with the given ID is not found.
+        """
+        ...
+
+    @property
+    def session(self) -> Client:
+        """Return the session for making HTTP requests.
+
+        Raises:
+            RuntimeError: If the session is not initialized.
+        """
+        ...
+
+    @property
+    def jwks_client(self) -> PyJWKClient:
+        """Return the JWKS client for verifying ESI tokens.
+
+        Raises:
+            RuntimeError: If the JWKS client is not initialized.
+        """
+        ...
+
+    @property
+    def oauth_metadata(self) -> OAuthMetadataTimestamped:
+        """Return the OAuth metadata for ESI.
+
+        Raises:
+            RuntimeError: If the OAuth metadata is not initialized.
         """
         ...

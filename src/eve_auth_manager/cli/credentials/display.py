@@ -32,10 +32,10 @@ class CredentialDetails:
 def _format_markdown_table_value(value: object) -> str:
     """Return a table-safe markdown representation of a value."""
     match value:
-        case list() as values:
+        case list() as values:  # type: ignore
             if not values:
                 return "-"
-            return ", ".join(str(item) for item in values)
+            return ", ".join(str(item) for item in values)  # type: ignore
         case _:
             text = str(value)
             if not text:
@@ -91,10 +91,20 @@ def display(
     ctx: typer.Context,
     cred_id: Annotated[
         UUID | None,
-        typer.Argument(
+        typer.Option(
+            "--cred_id",
             help="ID of the credentials to display.If provided, display detailed "
-            "information for the specified credentials. If not provided, a summary of "
-            "all credentials will be displayed.",
+            "information for the specified credentials. If neither --cred_id nor --cred_name "
+            "is provided, a summary of all credentials will be displayed.",
+        ),
+    ] = None,
+    cred_name: Annotated[
+        str | None,
+        typer.Option(
+            "--cred_name",
+            help="Name of the credentials to display. If provided, display detailed "
+            "information for the specified credentials. If neither --cred_id nor --cred_name "
+            "is provided, a summary of all credentials will be displayed.",
         ),
     ] = None,
     file_path: Annotated[
@@ -132,10 +142,9 @@ def display(
         messenger = Console(stderr=True, quiet=True)
     else:
         messenger = Console(stderr=True)
-    stdout = Console()
     settings = get_auth_manager_settings_from_context(ctx)
 
-    credentials = _get_credentials_details(settings.auth_db_path, cred_id)
+    credentials = _get_credentials_details(settings.auth_db_path, cred_id, cred_name)
     if isinstance(credentials, list):
         if not credentials:
             messenger.print("[yellow]No credentials found in the database.[/yellow]")
@@ -145,9 +154,9 @@ def display(
         output = detailed_display(credentials)
     if not file_path:
         if plain:
-            stdout.print(output)
+            print(output)
         else:
-            stdout.print(Markdown(output))
+            messenger.print(Markdown(output))
     else:
         output_path = save_text_file(
             text=output,
@@ -159,15 +168,24 @@ def display(
 
 
 def _get_credentials_details(
-    db_path: Path, cred_id: UUID | None
+    db_path: Path, cred_id: UUID | None, cred_name: str | None
 ) -> CredentialDetails | list[CredentialDetails]:
     with SqliteAuthManager(db_path) as auth_manager:
         if cred_id is not None:
-            credentials = auth_manager.get_credential(cred_id)
+            credentials = auth_manager.get_credential(cred_id=cred_id)
             credential_details = CredentialDetails(
                 auth_credentials=credentials,
                 authorized_character_count=len(
                     auth_manager.get_all_character_ids(cred_id)
+                ),
+            )
+            return credential_details
+        elif cred_name is not None:
+            credentials = auth_manager.get_credential(cred_name=cred_name)
+            credential_details = CredentialDetails(
+                auth_credentials=credentials,
+                authorized_character_count=len(
+                    auth_manager.get_all_character_ids(credentials.cred_id)
                 ),
             )
             return credential_details

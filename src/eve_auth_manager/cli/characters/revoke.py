@@ -16,8 +16,21 @@ app = typer.Typer(no_args_is_help=True)
 def revoke(
     ctx: typer.Context,
     cred_id: Annotated[
-        UUID, typer.Argument(help="ID of the credentials to use for revoking")
-    ],
+        UUID | None,
+        typer.Option(
+            "--cred_id",
+            help="ID of the credentials to use. If both --cred_id and --cred_name are "
+            "provided, --cred_id will take precedence.",
+        ),
+    ] = None,
+    cred_name: Annotated[
+        str | None,
+        typer.Option(
+            "--cred_name",
+            help="Name of the credentials to use. If both --cred_id and --cred_name are "
+            "provided, --cred_id will take precedence.",
+        ),
+    ] = None,
     character_id: Annotated[
         list[int] | None,
         typer.Option(
@@ -44,7 +57,17 @@ def revoke(
         messenger = Console(stderr=True)
     settings = get_auth_manager_settings_from_context(ctx)
     with SqliteAuthManager(settings.auth_db_path) as auth_manager:
-        ids_with_names = auth_manager.get_all_character_ids(cred_id)
+        # if both cred_id and cred_name are provided, cred_id takes precedence
+        if cred_id is not None:
+            credentials = auth_manager.get_credential(cred_id=cred_id)
+        elif cred_name is not None:
+            credentials = auth_manager.get_credential(cred_name=cred_name)
+        else:
+            messenger.print(
+                "[red]Either --cred_id or --cred_name must be provided.[/red]"
+            )
+            raise typer.Exit(1)
+        ids_with_names = auth_manager.get_all_character_ids(credentials.cred_id)
     revocation_set: set[int] | None = None
     if character_id is not None:
         revocation_set = set(character_id)
@@ -52,7 +75,7 @@ def revoke(
         if char_id not in ids_with_names:
             messenger.print(
                 f"[red]Character ID {char_id} is not authorized with credentials ID "
-                f"{cred_id}.[/red]"
+                f"{credentials.cred_id}.[/red]"
             )
             raise typer.Exit(1)
     if not force:
@@ -75,7 +98,7 @@ def revoke(
         if not typer.confirm("\n".join(prompts), abort=True):
             messenger.print("[yellow]Revocation cancelled.[/yellow]")
             raise typer.Exit(0)
-    revoked = auth_manager.revoke_characters(cred_id, revocation_set)
+    revoked = auth_manager.revoke_characters(credentials.cred_id, revocation_set)
     if not revoked:
         messenger.print(
             "[yellow]No characters were revoked. They may have already been revoked.[/yellow]"

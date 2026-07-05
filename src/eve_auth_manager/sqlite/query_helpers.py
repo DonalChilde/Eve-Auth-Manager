@@ -11,6 +11,7 @@ from eve_auth_manager.models import (
     AuthCredential,
     AuthorizedCharacter,
     OAuthMetadataTimestamped,
+    OauthToken,
 )
 
 
@@ -159,7 +160,7 @@ def query_authorized_character(
         cred_id=UUID(row["cred_id"]),
         character_name=row["character_name"],
         expires_at=row["expires_at"],
-        oauth_token=json_io.json_loads(row["oauth_token"]),
+        oauth_token=OauthToken(token_data=json_io.json_loads(row["oauth_token"])),
     )
 
 
@@ -177,7 +178,7 @@ def query_authorized_characters(
             cred_id=UUID(row["cred_id"]),
             character_name=row["character_name"],
             expires_at=row["expires_at"],
-            oauth_token=json_io.json_loads(row["oauth_token"]),
+            oauth_token=OauthToken(token_data=json_io.json_loads(row["oauth_token"])),
         )
         for row in rows
     ]

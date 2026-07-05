@@ -170,7 +170,7 @@ class SqliteAuthManager(AuthManagerProtocol):
         return self._jwks_client
 
     def get_credential(
-        self, cred_id: UUID | None = None, cred_name: str | None = None
+        self, *, cred_id: UUID | None = None, cred_name: str | None = None
     ) -> AuthCredential:
         """Get the credential for the given ID or name.
 
@@ -581,3 +581,27 @@ class SqliteAuthManager(AuthManagerProtocol):
             RuntimeError: If the session is not initialized.
         """
         return self._session_check()
+
+    @property
+    def oauth_metadata(self) -> OAuthMetadataTimestamped:
+        """Get the OAuth metadata.
+
+        Returns:
+            The OAuthMetadataTimestamped object.
+
+        Raises:
+            RuntimeError: If the OAuth metadata is not loaded.
+        """
+        return self._oauth_metadata_check()
+
+    @property
+    def jwks_client(self) -> PyJWKClient:
+        """Get the JWKS client for verifying ESI tokens.
+
+        Returns:
+            The configured PyJWKClient instance.
+
+        Raises:
+            RuntimeError: If the JWKS client is not initialized.
+        """
+        return self._jwks_client_check()

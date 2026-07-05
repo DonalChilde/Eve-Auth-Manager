@@ -125,6 +125,11 @@ class AuthorizedCharacter:
         """Return the auth headers to use for authenticated requests to ESI."""
         return {"Authorization": f"Bearer {self.oauth_token.access_token}"}
 
+    @property
+    def access_token(self) -> str:
+        """Return the access token string."""
+        return self.oauth_token.access_token
+
 
 class OAuthMetadataTD(TypedDict):
     """TypedDict for OAuth metadata."""

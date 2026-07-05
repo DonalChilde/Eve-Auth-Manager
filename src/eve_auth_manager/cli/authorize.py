@@ -92,6 +92,13 @@ def authorize(
             "be refreshed.",
         ),
     ] = 300,
+    indent: Annotated[
+        int | None,
+        typer.Option(
+            "--indent",
+            help="Number of spaces to use for indentation in the output JSON. Defaults to None.",
+        ),
+    ] = None,
     overwrite: Annotated[
         bool,
         typer.Option(
@@ -135,7 +142,6 @@ def authorize(
         messenger = Console(stderr=True, quiet=True)
     else:
         messenger = Console(stderr=True)
-    stdout = Console()
 
     parsed_arguments: _ParsedArgs = {}
     # If json_args is provided, parse it and combine it with the CLI args, with CLI args taking precedence.
@@ -181,10 +187,11 @@ def authorize(
     )
     authorized_root = AuthorizedDictRoot.model_validate(authorized_dict)
     if file_out == Path("-"):
-        stdout.print(authorized_root.model_dump_json(indent=2))
+        # stdout.print(authorized_root.model_dump_json(), highlight=False)
+        print(authorized_root.model_dump_json(indent=indent))
     else:
         out_path = save_text_file(
-            text=authorized_root.model_dump_json(indent=2),
+            text=authorized_root.model_dump_json(indent=indent),
             output_directory=file_out.parent,
             file_name=file_out.name,
             overwrite=overwrite,
