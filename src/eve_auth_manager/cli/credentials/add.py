@@ -10,7 +10,7 @@ from eve_auth_manager.cli.helpers import (
     get_auth_manager_settings_from_context,
     get_stdin,
 )
-from eve_auth_manager.models import EsiAppCredentialsRoot
+from eve_auth_manager.models import EsiAppCredentialRoot
 from eve_auth_manager.sqlite.manager import SqliteAuthManager
 
 app = typer.Typer(no_args_is_help=True)
@@ -54,9 +54,9 @@ def add_credentials(
     else:
         messenger.print(f"Loading credentials from {credentials_file}...")
         creds_text = credentials_file.read_text()
-    credentials = EsiAppCredentialsRoot.model_validate_json(creds_text).root
+    credentials = EsiAppCredentialRoot.model_validate_json(creds_text).root
     with SqliteAuthManager(settings.auth_db_path) as auth_manager:
-        added_creds = auth_manager.add_credentials(credentials)
+        added_creds = auth_manager.add_credential(credentials)
     # get the UUID of the added credentials and print it
     cred_id = next(iter(added_creds))
     messenger.print(

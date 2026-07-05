@@ -13,7 +13,7 @@ from rich.markdown import Markdown
 
 from eve_auth_manager.cli.helpers import get_auth_manager_settings_from_context
 from eve_auth_manager.helpers.save_text_file import save_text_file
-from eve_auth_manager.models import AuthCredentials
+from eve_auth_manager.models import AuthCredential
 from eve_auth_manager.sqlite.manager import SqliteAuthManager
 
 app = typer.Typer(
@@ -25,7 +25,7 @@ app = typer.Typer(
 class CredentialDetails:
     """Class to hold detailed information about a credential."""
 
-    auth_credentials: AuthCredentials
+    auth_credentials: AuthCredential
     authorized_character_count: int
 
 
@@ -163,7 +163,7 @@ def _get_credentials_details(
 ) -> CredentialDetails | list[CredentialDetails]:
     with SqliteAuthManager(db_path) as auth_manager:
         if cred_id is not None:
-            credentials = auth_manager.get_credentials(cred_id)
+            credentials = auth_manager.get_credential(cred_id)
             credential_details = CredentialDetails(
                 auth_credentials=credentials,
                 authorized_character_count=len(

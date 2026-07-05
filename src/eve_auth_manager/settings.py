@@ -10,6 +10,10 @@ from eve_auth_manager import __app_name__, __url__, __version__
 
 AUDIENCE = "EVE Online"
 USER_AGENT = f"{__app_name__} ({__version__}) (+{__url__}) auth_manager stand alone"
+OAUTH_METADATA_URL = (
+    "https://login.eveonline.com/.well-known/oauth-authorization-server"
+)
+"""URL to fetch OAuth metadata from the ESI auth server."""
 
 
 @dataclass(slots=True, kw_only=True)

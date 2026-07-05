@@ -34,7 +34,7 @@ def add(
     messenger = Console(stderr=True)
     settings = get_auth_manager_settings_from_context(ctx)
     with SqliteAuthManager(settings.auth_db_path) as auth_manager:
-        credentials = auth_manager.get_credentials(cred_id)
+        credentials = auth_manager.get_credential(cred_id)
         character_ids = auth_manager.get_all_character_ids(cred_id)
         oauth_metadata = auth_manager.get_oauth_metadata()
         if character_id in character_ids:

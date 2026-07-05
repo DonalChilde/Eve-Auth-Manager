@@ -9,8 +9,8 @@ from whenever import Instant
 
 
 @dataclass(slots=True, kw_only=True, frozen=True)
-class EsiAppCredentials:
-    """EVE application credentials.
+class EsiAppCredential:
+    """EVE application credential.
 
     Field names match the JSON keys returned by the ESI app registration page.
     https://developers.eveonline.com/applications
@@ -25,10 +25,12 @@ class EsiAppCredentials:
 
 
 @dataclass(slots=True, kw_only=True, frozen=True)
-class AuthCredentials(EsiAppCredentials):
+class AuthCredential(EsiAppCredential):
     cred_id: UUID
-    """An identifier for the credentials, used to distinguish between multiple sets of 
-    credentials in the auth database."""
+    """An identifier for the credential, used to distinguish between multiple sets of 
+    credential in the auth database."""
+    created_at: int
+    """The timestamp of when the credential was created, in seconds since the epoch."""
 
 
 @dataclass(slots=True, frozen=True)
@@ -105,7 +107,7 @@ class AuthorizedCharacter:
     character_id: int
     """The ID of the character."""
     cred_id: UUID
-    """The ID of the credentials."""
+    """The ID of the credential."""
     character_name: str
     """The name of the character."""
     expires_at: int
@@ -143,12 +145,12 @@ class OAuthMetadataTimestamped:
     metadata: OAuthMetadataTD
     """The OAuth metadata as a dictionary."""
     timestamp: int
-    """The timestamp of when the metadata was fetched, in nano_seconds since the epoch."""
+    """The timestamp of when the metadata was fetched, in seconds since the epoch."""
 
     @property
     def timestamp_instant(self) -> Instant:
         """Convert the timestamp to an Instant."""
-        return Instant.from_timestamp_nanos(self.timestamp)
+        return Instant.from_timestamp(self.timestamp)
 
     @property
     def issuers(self) -> list[str]:
@@ -189,4 +191,4 @@ class OAuthMetadataTimestamped:
         return self.metadata["token_endpoint_auth_signing_alg_values_supported"]
 
 
-EsiAppCredentialsRoot = RootModel[EsiAppCredentials]
+EsiAppCredentialRoot = RootModel[EsiAppCredential]

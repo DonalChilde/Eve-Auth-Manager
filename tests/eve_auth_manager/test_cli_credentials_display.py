@@ -7,12 +7,12 @@ from eve_auth_manager.cli.credentials.display import (
     detailed_display,
     display_credientials_summary,
 )
-from eve_auth_manager.models import AuthCredentials
+from eve_auth_manager.models import AuthCredential
 
 
 def test_detailed_display_includes_all_auth_credential_fields() -> None:
     """Detailed display should include each credential field and the auth count."""
-    credentials = AuthCredentials(
+    credentials = AuthCredential(
         cred_id=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
         name="Primary App",
         description="Used for corp tools",
@@ -51,7 +51,7 @@ def test_detailed_display_includes_all_auth_credential_fields() -> None:
 def test_credentials_summary_lists_requested_columns() -> None:
     """Summary display should list credential identity and authorization counts."""
     first = CredentialDetails(
-        auth_credentials=AuthCredentials(
+        auth_credentials=AuthCredential(
             cred_id=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
             name="Primary App",
             description="Corp auth",
@@ -63,7 +63,7 @@ def test_credentials_summary_lists_requested_columns() -> None:
         authorized_character_count=2,
     )
     second = CredentialDetails(
-        auth_credentials=AuthCredentials(
+        auth_credentials=AuthCredential(
             cred_id=UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
             name="Backup App",
             description="Alliance auth",

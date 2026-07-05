@@ -1,15 +1,15 @@
 """Protocol for the AuthManager class."""
 
+from collections.abc import Iterable
 from typing import Annotated, Protocol
 from uuid import UUID
 
 from annotated_types import Ge, Le
 
 from eve_auth_manager.models import (
-    AuthCredentials,
+    AuthCredential,
     AuthorizedCharacter,
-    EsiAppCredentials,
-    OAuthMetadataTimestamped,
+    EsiAppCredential,
 )
 
 
@@ -21,73 +21,90 @@ class AuthManagerError(Exception):
         super().__init__(*args)
 
 
-class CredentialsNotFoundError(AuthManagerError):
-    """Raised when credentials are not found for a given ID."""
+class CredentialNotFoundError(AuthManagerError):
+    """Raised when a credential is not found for a given ID."""
 
-    def __init__(self, cred_id: UUID) -> None:
-        """Initialize the CredentialsNotFoundError with the credentials ID."""
-        super().__init__(f"Credentials with ID {cred_id} not found.")
+    def __init__(self, cred_id: UUID, *args: object) -> None:
+        """Initialize the CredentialNotFoundError with the credential ID."""
+        super().__init__(f"Credential with ID {cred_id} not found.", *args)
 
 
 class CharacterNotFoundError(AuthManagerError):
     """Raised when a character is not found for a given ID."""
 
-    def __init__(self, cred_id: UUID, character_id: int) -> None:
+    def __init__(self, cred_id: UUID, character_id: int, *args: object) -> None:
         """Initialize the CharacterNotFoundError with the character ID."""
         super().__init__(
-            f"Character with ID {character_id} not found for credentials ID {cred_id}."
+            f"Character with ID {character_id} not found for credential ID {cred_id}.",
+            *args,
         )
+
+
+class CharactersNotFoundError(AuthManagerError):
+    """Raised when characters are not found for a given credential ID.
+
+    Could be raised when trying to revoke or refresh multiple characters and none of them are found.
+    """
+
+    def __init__(
+        self, cred_id: UUID, character_ids: Iterable[int] | None = None, *args: object
+    ) -> None:
+        """Initialize the CharactersNotFoundError with the credential ID."""
+        message = f"Characters not found for credential ID {cred_id}."
+        if character_ids:
+            message += f" Character IDs: {', '.join(map(str, character_ids))}."
+        super().__init__(message, *args)
 
 
 class AuthManagerProtocol(Protocol):
     """Protocol for the AuthManager class."""
 
-    def get_credentials(self, cred_id: UUID) -> AuthCredentials:
-        """Get the credentials for the given ID.
+    def get_credential(self, cred_id: UUID) -> AuthCredential:
+        """Get the credential for the given ID.
 
         Args:
-            cred_id: The ID of the credentials to retrieve.
+            cred_id: The ID of the credential to retrieve.
 
         Returns:
-            The AuthCredentials object if found.
+            The AuthCredential object if found.
 
         Raises:
-            CredentialsNotFoundError: If the credentials with the given ID are not found.
+            CredentialNotFoundError: If the credential with the given ID is not found.
         """
         ...
 
-    def get_all_credentials(self) -> list[AuthCredentials]:
+    def get_all_credentials(self) -> list[AuthCredential]:
         """Get all stored credentials.
 
         Returns:
-            A list of all AuthCredentials objects.
+            A list of all AuthCredential objects.
         """
         ...
 
-    def add_credentials(self, credentials: EsiAppCredentials) -> dict[UUID, str]:
-        """Save the given credentials and return their ID.
+    def add_credential(self, credential: EsiAppCredential) -> dict[UUID, str]:
+        """Save the given credential and return its ID.
 
         Args:
-            credentials: The EsiAppCredentials object to save.
+            credential: The EsiAppCredential object to save.
 
         Returns:
-            A dictionary mapping the UUID to the name of the saved credentials.
+            A dictionary mapping the UUID to the name of the saved credential.
         """
         ...
 
-    def remove_credentials(self, cred_id: UUID) -> dict[UUID, str]:
-        """Remove the credentials for the given ID.
+    def remove_credential(self, cred_id: UUID) -> dict[UUID, str]:
+        """Remove the credential for the given ID.
 
         Also revokes all associated character tokens.
 
         Args:
-            cred_id: The ID of the credentials to remove.
+            cred_id: The ID of the credential to remove.
 
         Returns:
-            A dictionary mapping the removed credentials ID to its name.
+            A dictionary mapping the removed credential ID to its name.
 
         Raises:
-            CredentialsNotFoundError: If the credentials with the given ID are not found.
+            CredentialNotFoundError: If the credential with the given ID is not found.
         """
         ...
 
@@ -95,7 +112,7 @@ class AuthManagerProtocol(Protocol):
         """Get the authenticated character for the given character ID.
 
         Args:
-            cred_id: The ID of the credentials.
+            cred_id: The ID of the credential.
             character_id: The ID of the character to retrieve.
 
         Returns:
@@ -103,7 +120,7 @@ class AuthManagerProtocol(Protocol):
 
         Raises:
             CharacterNotFoundError: If the character with the given ID is not found.
-            CredentialsNotFoundError: If the credentials with the given ID are not found.
+            CredentialNotFoundError: If the credential with the given ID is not found.
         """
         ...
 
@@ -113,14 +130,14 @@ class AuthManagerProtocol(Protocol):
         """Add an authenticated character.
 
         Args:
-            cred_id: The ID of the credentials.
+            cred_id: The ID of the credential.
             character: The AuthorizedCharacter object to add.
 
         Returns:
             A dictionary mapping character_id to name for the added character.
 
         Raises:
-            CredentialsNotFoundError: If the credentials with the given ID are not found.
+            CredentialNotFoundError: If the credential with the given ID is not found.
         """
         ...
 
@@ -130,14 +147,14 @@ class AuthManagerProtocol(Protocol):
         Also removes the character from the database.
 
         Args:
-            cred_id: The ID of the credentials.
+            cred_id: The ID of the credential.
             character_id: The ID of the character to revoke.
 
         Returns:
             A dictionary mapping character_id to name for the revoked character.
 
         Raises:
-            CredentialsNotFoundError: If the credentials with the given ID are not found.
+            CredentialNotFoundError: If the credential with the given ID is not found.
             CharacterNotFoundError: If the character with the given ID is not found.
         """
         ...
@@ -145,12 +162,12 @@ class AuthManagerProtocol(Protocol):
     def revoke_characters(
         self, cred_id: UUID, character_ids: set[int] | None = None
     ) -> dict[int, str]:
-        """Revoke all authenticated characters for the given credentials ID.
+        """Revoke all authenticated characters for the given credential ID.
 
         Also removes the characters from the database.
 
         Args:
-            cred_id: The ID of the credentials.
+            cred_id: The ID of the credential.
             character_ids: The IDs of the characters to revoke. If None, revoke all
                 characters.
 
@@ -158,35 +175,35 @@ class AuthManagerProtocol(Protocol):
             A dictionary mapping character_id to name for each revoked character.
 
         Raises:
-            CredentialsNotFoundError: If the credentials with the given ID are not found.
+            CredentialNotFoundError: If the credential with the given ID is not found.
         """
         ...
 
     def get_all_characters(self, cred_id: UUID) -> list[AuthorizedCharacter]:
-        """Get all authenticated characters for the given credentials ID.
+        """Get all authenticated characters for the given credential ID.
 
         Args:
-            cred_id: The ID of the credentials.
+            cred_id: The ID of the credential.
 
         Returns:
             A list of all AuthorizedCharacter objects.
 
         Raises:
-            CredentialsNotFoundError: If the credentials with the given ID are not found.
+            CredentialNotFoundError: If the credential with the given ID is not found.
         """
         ...
 
     def get_all_character_ids(self, cred_id: UUID) -> dict[int, str]:
-        """Get all authenticated character IDs for the given credentials ID.
+        """Get all authenticated character IDs for the given credential ID.
 
         Args:
-            cred_id: The ID of the credentials.
+            cred_id: The ID of the credential.
 
         Returns:
             A dictionary mapping character_id to name for each authenticated character.
 
         Raises:
-            CredentialsNotFoundError: If the credentials with the given ID are not found.
+            CredentialNotFoundError: If the credential with the given ID is not found.
         """
         ...
 
@@ -200,7 +217,7 @@ class AuthManagerProtocol(Protocol):
         """Refresh the authenticated character for the given character ID.
 
         Args:
-            cred_id: The ID of the credentials.
+            cred_id: The ID of the credential.
             character_id: The ID of the character to refresh.
             min_seconds: The minimum number of seconds til expiration before refreshing.
 
@@ -208,7 +225,7 @@ class AuthManagerProtocol(Protocol):
             The refreshed AuthorizedCharacter object.
 
         Raises:
-            CredentialsNotFoundError: If the credentials with the given ID are not found.
+            CredentialNotFoundError: If the credential with the given ID is not found.
             CharacterNotFoundError: If the character with the given ID is not found.
         """
         ...
@@ -220,10 +237,10 @@ class AuthManagerProtocol(Protocol):
         *,
         min_seconds: Annotated[int, Ge(0), Le(1200)] = 300,
     ) -> list[AuthorizedCharacter]:
-        """Refresh all authenticated characters for the given credentials ID.
+        """Refresh all authenticated characters for the given credential ID.
 
         Args:
-            cred_id: The ID of the credentials.
+            cred_id: The ID of the credential.
             character_ids: The IDs of the characters to refresh. If None, refresh all
                 characters.
             min_seconds: The minimum number of seconds til expiration before refreshing.
@@ -232,26 +249,6 @@ class AuthManagerProtocol(Protocol):
             A list of refreshed AuthorizedCharacter objects.
 
         Raises:
-            CredentialsNotFoundError: If the credentials with the given ID are not found.
-        """
-        ...
-
-    def get_oauth_metadata(self) -> OAuthMetadataTimestamped:
-        """Get the OAuth metadata.
-
-        Returns:
-            The OAuthMetadataTimestamped object containing the metadata and timestamp.
-        """
-        ...
-
-    def refresh_oauth_metadata(self) -> OAuthMetadataTimestamped:
-        """Refresh the OAuth metadata.
-
-        Refresh the OAuth metadata from the EVE Online SSO and cache it in the database.
-        This method should be called periodically to ensure that the metadata is
-        up-to-date.
-
-        Returns:
-            The refreshed OAuthMetadataTimestamped object.
+            CredentialNotFoundError: If the credential with the given ID is not found.
         """
         ...

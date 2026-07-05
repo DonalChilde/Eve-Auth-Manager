@@ -1,4 +1,4 @@
-"""Helper functions for working with ESI Oauth tokens."""
+"""Low level helper functions for working with ESI Oauth tokens."""
 
 import logging
 from collections.abc import Sequence
