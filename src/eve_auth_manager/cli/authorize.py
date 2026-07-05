@@ -71,7 +71,8 @@ def authorize(
         UUID | None,
         typer.Option(
             "--cred-id",
-            help="Credential ID to use. Takes precedence over --cred-name.",
+            help="Credential ID to use. One of --cred-id or --cred-name is required."
+            " Takes precedence over --cred-name.",
         ),
     ] = None,
     cred_name: Annotated[

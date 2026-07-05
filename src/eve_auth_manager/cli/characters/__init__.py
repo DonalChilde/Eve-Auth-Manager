@@ -7,7 +7,9 @@ from eve_auth_manager.cli.characters.revoke import app as revoke_app
 from eve_auth_manager.cli.characters.search_id import app as search_id_app
 
 app = typer.Typer(
-    no_args_is_help=True, name="characters", help="Manage Authorized Character tokens."
+    no_args_is_help=True,
+    name="characters",
+    help="Manage authorized character tokens.",
 )
 
 app.add_typer(add_app)

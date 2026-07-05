@@ -1,4 +1,4 @@
-"""Commands for db maintenance tasks."""
+"""Commands for database maintenance tasks."""
 
 import typer
 

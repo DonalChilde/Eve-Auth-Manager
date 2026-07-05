@@ -19,7 +19,6 @@ def refresh(
         UUID | None,
         typer.Option(
             "--cred-id",
-            "--cred_id",
             help="Credential ID to use. One of --cred-id or --cred-name is required."
             " Takes precedence over --cred-name.",
         ),
@@ -28,7 +27,6 @@ def refresh(
         str | None,
         typer.Option(
             "--cred-name",
-            "--cred_name",
             help="Credential name to use when --cred-id is not provided.",
         ),
     ] = None,
