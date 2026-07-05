@@ -6,6 +6,13 @@
   ],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
+  "python.testing.cwd": "${workspaceFolder}",
+  "python.testing.pytestArgs": [
+    "tests/eve_auth_manager",
+    "--cov=src/eve_auth_manager",
+    "--cov-report=term-missing",
+    "--cov-report=xml:coverage.xml"
+  ],
   "[git-commit]": {
     "editor.rulers": [
       50
