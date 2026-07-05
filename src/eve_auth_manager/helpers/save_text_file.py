@@ -1,4 +1,4 @@
-"""Write text files with explicit overwrite semantics."""
+"""Write text files while creating parent directories and enforcing overwrite policy."""
 
 from pathlib import Path
 
@@ -11,21 +11,23 @@ def save_text_file(
     overwrite: bool = False,
     encoding: str = "utf-8",
 ) -> Path:
-    """Write text to ``output_directory / file_name``.
+    """Write text to a file in the target output directory.
 
     Args:
         text: Text content to write.
-        output_directory: Directory to write the file into.
-        file_name: Output file name.
-        overwrite: If true, replace existing file contents. If false, fail when
-            the file already exists.
-        encoding: File encoding to use.
+        output_directory: Directory that should contain the output file.
+        file_name: Name of the output file to create.
+        overwrite: If true, replace an existing file. If false, raise an error
+            when the target file already exists.
+        encoding: Text encoding to use when writing the file.
 
     Returns:
-        Path to the written file.
+        Path object for the written file.
 
     Raises:
-        FileExistsError: If the target file exists and ``overwrite`` is false.
+        FileExistsError: If the target file exists and overwrite is false.
+        OSError: If the parent directory cannot be created or the file cannot
+            be written.
 
     Notes:
         Parent directories are created automatically when missing.

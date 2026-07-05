@@ -1,8 +1,9 @@
 """Helpers for building GitHub-Flavored Markdown tables.
 
-Provides ``MarkdownTable``, a small dataclass-based builder that handles
-column alignment, width padding, pipe/newline escaping, and rendering
-rows supplied either positionally or as dicts keyed by header name.
+Provides MarkdownTable, a small dataclass-based builder that handles
+column alignment, width padding, pipe escaping, configurable newline
+replacement, and rendering rows supplied either positionally or as
+mappings keyed by header name.
 """
 
 from collections.abc import Mapping, Sequence
@@ -12,13 +13,7 @@ from typing import Any
 
 
 class Align(Enum):
-    """Column alignment for a markdown table.
-
-    Attributes:
-        LEFT: Left-align cell content (default markdown behavior).
-        RIGHT: Right-align cell content.
-        CENTER: Center cell content.
-    """
+    """Supported column alignments for rendered markdown tables."""
 
     LEFT = "left"
     RIGHT = "right"
@@ -43,8 +38,8 @@ def _format_cell(value: Any, newline_replacement: str) -> str:
     """Convert an arbitrary cell value into an escaped display string.
 
     Args:
-        value: The raw cell value. ``None`` renders as an empty string;
-            any other value is converted via ``str()``.
+        value: The raw cell value. None renders as an empty string;
+            any other value is converted via str().
         newline_replacement: String substituted for any newline character
             in the stringified value.
 
@@ -65,7 +60,8 @@ def _separator_cell(width: int, align: Align) -> str:
 
     Returns:
         A dash-and-colon string per markdown alignment syntax (e.g.
-        ``":---:"`` for center), at least 3 characters wide.
+        ":---:" for center), at least 3 characters wide to satisfy
+        markdown table conventions.
     """
     # width is the number of visible dashes/colons in the cell, min 3 per markdown convention
     width = max(width, 3)
@@ -98,21 +94,21 @@ def _pad(cell: str, width: int, align: Align) -> str:
 class MarkdownTable:
     """A builder for GitHub-Flavored Markdown tables.
 
-    Rows can be added positionally via ``add_row`` or as dicts keyed by
-    header name via ``add_row_dict``. Cell values are converted with
-    ``str()`` and escaped for markdown safety; any formatting beyond that
+    Rows can be added positionally via add_row or as dicts keyed by
+    header name via add_row_dict. Cell values are converted with
+    str() and escaped for markdown safety; any formatting beyond that
     (e.g. numeric precision) is the caller's responsibility.
 
     Attributes:
         headers: Column header labels, in display order.
-        align: Per-column alignment, in the same order as ``headers``.
+        align: Per-column alignment, in the same order as headers.
             Defaults to left-alignment for every column if not given.
-        rows: The table's row data, appended to via ``add_row`` /
-            ``add_row_dict`` rather than set directly.
+        rows: The table's row data, appended to via add_row /
+            add_row_dict rather than set directly.
         newline_replacement: String substituted for newline characters
             found inside cell values, since markdown table cells cannot
             contain literal line breaks. Defaults to a single space;
-            pass ``"<br>"`` for renderers that support inline HTML.
+            pass "<br>" for renderers that support inline HTML.
     """
 
     headers: Sequence[str]
@@ -124,8 +120,8 @@ class MarkdownTable:
         """Fill in default alignment and validate its length.
 
         Raises:
-            ValueError: If ``align`` is provided but its length does not
-                match ``headers``.
+            ValueError: If align is provided but its length does not match
+                headers.
         """
         if not self.align:
             self.align = tuple(Align.LEFT for _ in self.headers)
@@ -138,11 +134,11 @@ class MarkdownTable:
         """Append a row supplied as positional values.
 
         Args:
-            row: Cell values in the same order as ``headers``. Values are
+            row: Cell values in the same order as headers. Values are
                 stringified and escaped at render time, not here.
 
         Raises:
-            ValueError: If ``len(row)`` does not match ``len(headers)``.
+            ValueError: If len(row) does not match len(headers).
         """
         if len(row) != len(self.headers):
             raise ValueError(
@@ -154,19 +150,18 @@ class MarkdownTable:
         """Append a row supplied as a dict keyed by header name.
 
         Values are pulled out in header order regardless of the dict's
-        iteration order, so key order in ``row`` does not matter.
+        iteration order, so key order in row does not matter.
 
         Args:
             row: Mapping from header name to cell value. Keys not present
-                in ``headers`` always raise, regardless of ``default``.
-            default: Value used for any header missing from ``row``. If
-                ``None`` (the default), a missing header raises instead of
-                being filled in.
+                in headers always raise, regardless of default.
+            default: Fill value used for headers missing from row. If
+                None (the default), missing headers are treated as
+                errors instead of being filled in.
 
         Raises:
-            ValueError: If ``row`` contains a key not in ``headers``, or
-                if ``default`` is ``None`` and ``row`` is missing a key
-                that is in ``headers``.
+            ValueError: If row contains a key not in headers, or if default
+                is None and row is missing a key that is in headers.
         """
         extra = row.keys() - set(self.headers)
         if extra:
@@ -189,7 +184,8 @@ class MarkdownTable:
         Returns:
             The complete markdown table, including header and separator
             rows, as a single newline-joined string with no trailing
-            newline.
+            newline. If no data rows were added, the output still contains
+            a valid header-only table.
         """
         header_cells = [_format_cell(h, self.newline_replacement) for h in self.headers]
         row_cells = [

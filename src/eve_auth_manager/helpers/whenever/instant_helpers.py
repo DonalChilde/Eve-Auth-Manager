@@ -1,35 +1,41 @@
-"""Helper functions for working with whenever.Instant."""
+"""Convenience helpers for current-time and relative-time calculations with whenever.Instant."""
 
 from whenever import Instant
 
 
 def timestamp() -> int:
-    """Return the current timestamp in seconds since the epoch."""
+    """Return the current Unix timestamp in whole seconds."""
     return Instant.now().timestamp()
 
 
 def timestamp_nanos() -> int:
-    """Return the current timestamp in nanoseconds since the epoch."""
+    """Return the current Unix timestamp in nanoseconds."""
     return Instant.now().timestamp_nanos()
 
 
 def from_now(timestamp: int) -> int:
-    """Return the number of seconds from now until the given timestamp.
+    """Compute the signed number of seconds until a target Unix timestamp.
+
+    Args:
+        timestamp: Target Unix timestamp in whole seconds.
 
     Returns:
-        The number of seconds from now until the given timestamp. If the timestamp is
-            in the past, returns a negative number.
+        Signed number of seconds between now and the target timestamp.
+        Negative values indicate the target time is already in the past.
     """
     now = Instant.now().timestamp()
     return timestamp - now
 
 
 def from_now_nanos(timestamp_nanos: int) -> int:
-    """Return the number of nanoseconds from now until the given timestamp.
+    """Compute the signed number of nanoseconds until a target Unix timestamp.
+
+    Args:
+        timestamp_nanos: Target Unix timestamp in nanoseconds.
 
     Returns:
-        The number of nanoseconds from now until the given timestamp. If the timestamp is
-            in the past, returns a negative number.
+        Signed number of nanoseconds between now and the target timestamp.
+        Negative values indicate the target time is already in the past.
     """
     now_nanos = Instant.now().timestamp_nanos()
     return timestamp_nanos - now_nanos
