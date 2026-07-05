@@ -181,8 +181,10 @@ NOTE: Specific endpoints require specific scopes that were defined when you made
 AUTH_JSON="$(uv run eve-auth authorize --cred-id <credential-uuid> --character-id <character-id>)"
 ACCESS_TOKEN="$(printf '%s' "$AUTH_JSON" | python -c "import sys, json; print(json.load(sys.stdin)['access_token'])")"
 CHARACTER_ID="$(printf '%s' "$AUTH_JSON" | python -c "import sys, json; print(json.load(sys.stdin)['character_id'])")"
+USER_AGENT="eve-auth-manager-readme-example/0.1"
 
 curl -H "Authorization: Bearer $ACCESS_TOKEN" \
+	-H "User-Agent: $USER_AGENT" \
 	"https://esi.evetech.net/characters/$CHARACTER_ID/attributes/?datasource=tranquility"
 ```
 
@@ -192,7 +194,9 @@ uv run eve-auth authorize --cred-id <credential-uuid> --character-id <character-
 	| jq -r '"\(.access_token) \(.character_id)"' \
 	| {
 		read -r ACCESS_TOKEN CHARACTER_ID
+		USER_AGENT="eve-auth-manager-readme-example/0.1"
 		curl -H "Authorization: Bearer $ACCESS_TOKEN" \
+			-H "User-Agent: $USER_AGENT" \
 			"https://esi.evetech.net/characters/$CHARACTER_ID/attributes/?datasource=tranquility"
 	}
 ```
@@ -204,8 +208,10 @@ uv run eve-auth authorize --cred-id <credential-uuid> --character-id <character-
 
 ACCESS_TOKEN="$(jq -r '.access_token' /tmp/eve-auth-authorized.json)"
 CHARACTER_ID="$(jq -r '.character_id' /tmp/eve-auth-authorized.json)"
+USER_AGENT="eve-auth-manager-readme-example/0.1"
 
 curl -H "Authorization: Bearer $ACCESS_TOKEN" \
+	-H "User-Agent: $USER_AGENT" \
 	"https://esi.evetech.net/characters/$CHARACTER_ID/attributes/?datasource=tranquility"
 ```
 
@@ -219,13 +225,17 @@ from urllib.request import Request, urlopen
 authorized = json.load(sys.stdin)
 access_token = authorized["access_token"]
 character_id = authorized["character_id"]
+user_agent = "eve-auth-manager-readme-example/0.1"
 
 request = Request(
 	url=(
 		f"https://esi.evetech.net/characters/{character_id}/attributes/"
 		"?datasource=tranquility"
 	),
-	headers={"Authorization": f"Bearer {access_token}"},
+	headers={
+		"Authorization": f"Bearer {access_token}",
+		"User-Agent": user_agent,
+	},
 )
 
 with urlopen(request) as response:
@@ -259,12 +269,18 @@ def main() -> None:
 	authorized = json.load(sys.stdin)
 	access_token = authorized["access_token"]
 	character_id = authorized["character_id"]
+	user_agent = "eve-auth-manager-readme-example/0.1"
 	url = (
 		f"https://esi.evetech.net/characters/{character_id}/attributes/"
 		"?datasource=tranquility"
 	)
 
-	with Client(headers={"Authorization": f"Bearer {access_token}"}) as client:
+	with Client(
+		headers={
+			"Authorization": f"Bearer {access_token}",
+			"User-Agent": user_agent,
+		}
+	) as client:
 		response = client.get(url)
 		response.raise_for_status()
 
