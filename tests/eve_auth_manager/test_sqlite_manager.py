@@ -171,6 +171,70 @@ def test_manager_enter_fetches_and_caches_oauth_metadata(
         second.__exit__(None, None, None)
 
 
+def test_manager_refreshes_stale_cached_oauth_metadata(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Entering the manager should refresh cached metadata when it is stale."""
+    db_path = tmp_path / "auth.db"
+    conn = create_read_write_connection(db_path)
+    try:
+        manager_module.query.write_oauth_metadata(
+            conn,
+            oauth_metadata=OAuthMetadataTimestamped(
+                metadata=_metadata_payload(),
+                timestamp=1,
+            ),
+        )
+    finally:
+        conn.close()
+
+    manager, events = _enter_manager(tmp_path, monkeypatch, fetched_timestamp=100)
+    manager._oauth_metadata_timeout = 10
+    try:
+        manager._ensure_oauth_metadata()
+        assert len(events["get_calls"]) == 1
+        assert manager.oauth_metadata.timestamp == 100
+    finally:
+        manager.__exit__(None, None, None)
+
+
+def test_manager_ensure_oauth_metadata_raises_when_fetch_returns_none(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Manager should fail if metadata still is not available after refresh."""
+    manager = SqliteAuthManager(tmp_path / "auth.db")
+    manager._sqlite_connection = create_read_write_connection(tmp_path / "auth.db")
+    manager._session = SimpleNamespace(close=lambda: None)
+    monkeypatch.setattr(manager, "_fetch_oauth_metadata", lambda: None)
+    monkeypatch.setattr(
+        manager_module.query, "write_oauth_metadata", lambda *args, **kwargs: None
+    )
+
+    try:
+        with pytest.raises(RuntimeError, match="Failed to load OAuth metadata"):
+            manager._ensure_oauth_metadata()
+    finally:
+        manager._sqlite_connection.close()
+
+
+def test_manager_exit_closes_only_initialized_connection(tmp_path: Path) -> None:
+    """Manager exit should close the database connection even without a session."""
+    manager = SqliteAuthManager(tmp_path / "auth.db")
+    events: list[str] = []
+    manager._sqlite_connection = SimpleNamespace(close=lambda: events.append("conn"))
+
+    manager.__exit__(None, None, None)
+
+    assert events == ["conn"]
+
+
+def test_manager_exit_handles_missing_resources(tmp_path: Path) -> None:
+    """Manager exit should succeed even when no managed resources were initialized."""
+    manager = SqliteAuthManager(tmp_path / "auth.db")
+
+    manager.__exit__(None, None, None)
+
+
 def test_manager_credential_lifecycle_and_remove_with_revoke(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -226,6 +290,39 @@ def test_manager_credential_lifecycle_and_remove_with_revoke(
         assert calls == []
         with pytest.raises(CredentialNotFoundError):
             manager.remove_credential(fixed_uuid)
+    finally:
+        manager.__exit__(None, None, None)
+
+
+def test_manager_get_credential_by_name_and_remove_existing_characters(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Manager should raise for missing credential names and revoke existing characters on remove."""
+    fixed_uuid = UUID("abababab-abab-abab-abab-abababababab")
+    manager, _events = _enter_manager(tmp_path, monkeypatch)
+    monkeypatch.setattr(manager_module, "uuid4", lambda: fixed_uuid)
+    try:
+        app_credential = _make_app_credential("named-app")
+        manager.add_credential(app_credential)
+        manager.add_character(
+            fixed_uuid,
+            _make_authorized_character(cred_id=fixed_uuid, character_id=77),
+        )
+
+        with pytest.raises(CredentialNotFoundError):
+            manager.get_credential(cred_name="missing-name")
+
+        calls: list[tuple[UUID, set[int] | None]] = []
+        monkeypatch.setattr(
+            manager,
+            "revoke_characters",
+            lambda cred_id, character_ids=None: (
+                calls.append((cred_id, character_ids)) or {77: "Character 77"}
+            ),
+        )
+
+        assert manager.remove_credential(fixed_uuid) == {fixed_uuid: "named-app"}
+        assert calls == [(fixed_uuid, {77})]
     finally:
         manager.__exit__(None, None, None)
 
@@ -287,6 +384,76 @@ def test_manager_character_and_revocation_operations(
 
         assert manager.revoke_characters(credential_id, {9}) == {9: "Character 9"}
         assert len(revoked_calls) == 2
+        assert manager.get_all_character_ids(credential_id) == {}
+    finally:
+        manager.__exit__(None, None, None)
+
+
+def test_manager_missing_credential_branches_raise_consistently(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Character and refresh operations should raise when the credential is missing."""
+    missing_cred_id = UUID("efefefef-efef-efef-efef-efefefefefef")
+    manager, _events = _enter_manager(tmp_path, monkeypatch)
+    try:
+        with pytest.raises(CredentialNotFoundError):
+            manager.get_character(missing_cred_id, 1)
+        with pytest.raises(CredentialNotFoundError):
+            manager.revoke_character(missing_cred_id, 1)
+        with pytest.raises(CredentialNotFoundError):
+            manager.revoke_characters(missing_cred_id)
+        with pytest.raises(CredentialNotFoundError):
+            manager.get_all_character_ids(missing_cred_id)
+        with pytest.raises(CredentialNotFoundError):
+            manager.refresh_character(missing_cred_id, 1)
+        with pytest.raises(CredentialNotFoundError):
+            manager.refresh_characters(missing_cred_id)
+    finally:
+        manager.__exit__(None, None, None)
+
+
+def test_manager_revoke_characters_without_id_filter_revokes_all(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Bulk revoke should revoke all stored characters when no ID filter is provided."""
+    credential_id = UUID("34343434-3434-3434-3434-343434343434")
+    manager, _events = _enter_manager(tmp_path, monkeypatch)
+    try:
+        app_credential = _make_app_credential("bulk-revoke-app")
+        credential = AuthCredential(
+            cred_id=credential_id,
+            name=app_credential.name,
+            description=app_credential.description,
+            clientId=app_credential.clientId,
+            clientSecret=app_credential.clientSecret,
+            callbackUrl=app_credential.callbackUrl,
+            scopes=app_credential.scopes,
+            created_at=1_234,
+        )
+        manager_module.query.write_credentials(
+            manager._connection_check(), credentials=credential
+        )
+        first = _make_authorized_character(cred_id=credential_id, character_id=7)
+        second = _make_authorized_character(cred_id=credential_id, character_id=9)
+        manager_module.query.write_authorized_character(
+            manager._connection_check(), character=first
+        )
+        manager_module.query.write_authorized_character(
+            manager._connection_check(), character=second
+        )
+
+        revoked_calls: list[str] = []
+        monkeypatch.setattr(
+            manager_module.token_tools,
+            "revoke_refresh_token",
+            lambda **kwargs: revoked_calls.append(kwargs["refresh_token"]),
+        )
+
+        assert manager.revoke_characters(credential_id) == {
+            7: "Character 7",
+            9: "Character 9",
+        }
+        assert revoked_calls == ["refresh-token-7", "refresh-token-9"]
         assert manager.get_all_character_ids(credential_id) == {}
     finally:
         manager.__exit__(None, None, None)
@@ -427,5 +594,111 @@ def test_manager_refresh_operations_update_only_needed_characters(
 
         with pytest.raises(CharactersNotFoundError):
             manager.refresh_characters(credential_id, {999}, min_seconds=300)
+    finally:
+        manager.__exit__(None, None, None)
+
+
+def test_manager_refresh_characters_subset_refreshes_only_selected_expiring_rows(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Bulk refresh should filter to requested IDs and refresh only expiring matches."""
+    credential_id = UUID("cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd")
+    current_timestamp = Instant.now().timestamp()
+    manager, _events = _enter_manager(tmp_path, monkeypatch)
+    try:
+        app_credential = _make_app_credential("subset-app")
+        credential = AuthCredential(
+            cred_id=credential_id,
+            name=app_credential.name,
+            description=app_credential.description,
+            clientId=app_credential.clientId,
+            clientSecret=app_credential.clientSecret,
+            callbackUrl=app_credential.callbackUrl,
+            scopes=app_credential.scopes,
+            created_at=1_234,
+        )
+        manager_module.query.write_credentials(
+            manager._connection_check(), credentials=credential
+        )
+        expiring = AuthorizedCharacter(
+            character_id=7,
+            cred_id=credential_id,
+            character_name="Expiring Character",
+            expires_at=current_timestamp - 1,
+            oauth_token=OauthToken(
+                token_data={
+                    "access_token": "old-access-token",
+                    "refresh_token": "old-refresh-token",
+                    "expires_in": 3_600,
+                    "token_type": "Bearer",
+                }
+            ),
+        )
+        other = AuthorizedCharacter(
+            character_id=9,
+            cred_id=credential_id,
+            character_name="Other Character",
+            expires_at=current_timestamp - 1,
+            oauth_token=OauthToken(
+                token_data={
+                    "access_token": "other-access-token",
+                    "refresh_token": "other-refresh-token",
+                    "expires_in": 3_600,
+                    "token_type": "Bearer",
+                }
+            ),
+        )
+        manager_module.query.write_authorized_character(
+            manager._connection_check(), character=expiring
+        )
+        manager_module.query.write_authorized_character(
+            manager._connection_check(), character=other
+        )
+
+        refreshed_token = OauthToken(
+            token_data={
+                "access_token": "new-access-token",
+                "refresh_token": "new-refresh-token",
+                "expires_in": 7_200,
+                "token_type": "Bearer",
+            }
+        )
+        refreshed_character = AuthorizedCharacter(
+            character_id=7,
+            cred_id=credential_id,
+            character_name="Expiring Character",
+            expires_at=current_timestamp + 7_200,
+            oauth_token=refreshed_token,
+        )
+        calls: dict[str, list[dict[str, object]]] = {
+            "refresh": [],
+            "validate": [],
+            "create": [],
+        }
+        monkeypatch.setattr(
+            manager_module.token_tools,
+            "refresh_existing_token",
+            lambda **kwargs: calls["refresh"].append(kwargs) or refreshed_token,
+        )
+        monkeypatch.setattr(
+            manager_module.token_tools,
+            "validate_token",
+            lambda **kwargs: (
+                calls["validate"].append(kwargs)
+                or SimpleNamespace(character_id=7, character_name="Expiring Character")
+            ),
+        )
+        monkeypatch.setattr(
+            manager_module.token_tools,
+            "create_character_token",
+            lambda **kwargs: calls["create"].append(kwargs) or refreshed_character,
+        )
+
+        result = manager.refresh_characters(credential_id, {7}, min_seconds=300)
+
+        assert result == [refreshed_character]
+        assert calls["refresh"][0]["refresh_token"] == "old-refresh-token"
+        assert manager.get_character(credential_id, 7) == refreshed_character
+        assert manager.get_character(credential_id, 9) == other
     finally:
         manager.__exit__(None, None, None)

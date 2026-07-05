@@ -152,3 +152,60 @@ def test_refresh_all_characters_exits_cleanly_when_none_found(
         "character_ids": None,
         "min_seconds": 300,
     }
+
+
+def test_refresh_all_characters_prints_updated_entries(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Refresh should print a heading and refreshed characters when updates exist."""
+    ctx = _make_context(tmp_path)
+    resolved_cred_id = UUID("66666666-6666-6666-6666-666666666666")
+    printed: list[object] = []
+    console_kwargs: list[dict[str, object]] = []
+
+    class FakeConsole:
+        def __init__(self, **kwargs: object) -> None:
+            console_kwargs.append(dict(kwargs))
+
+        def print(self, message: object) -> None:
+            printed.append(message)
+
+    class FakeManager:
+        def __enter__(self) -> "FakeManager":
+            return self
+
+        def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+            return None
+
+        def get_credential(
+            self, *, cred_id: UUID | None = None, cred_name: str | None = None
+        ) -> object:
+            return SimpleNamespace(cred_id=cred_id or resolved_cred_id)
+
+        def refresh_characters(
+            self,
+            credential_id: UUID,
+            *,
+            character_ids: object,
+            min_seconds: int,
+        ) -> list[AuthorizedCharacter]:
+            assert credential_id == resolved_cred_id
+            assert character_ids is None
+            assert min_seconds == 450
+            return [
+                _make_character(cred_id=resolved_cred_id, character_id=7),
+                _make_character(cred_id=resolved_cred_id, character_id=9),
+            ]
+
+    monkeypatch.setattr(refresh_module, "Console", FakeConsole)
+    monkeypatch.setattr(refresh_module, "SqliteAuthManager", lambda path: FakeManager())
+
+    refresh(ctx, cred_name="main", min_seconds=450, quiet=False)  # type: ignore[arg-type]
+
+    assert console_kwargs == [{"stderr": True}]
+    assert printed == [
+        "# Updated characters:\n",
+        "- 7: Character 7",
+        "- 9: Character 9",
+    ]

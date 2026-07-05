@@ -90,6 +90,53 @@ def test_client_manager_closes_client_after_exception(
     assert events == ["close"]
 
 
+def test_client_manager_propagates_factory_error_without_closing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Synchronous client manager should propagate creation errors unchanged."""
+    events: list[str] = []
+
+    def fake_config(user_agent: str) -> object:
+        events.append(f"config:{user_agent}")
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(http_session_factory, "config_http_client", fake_config)
+
+    with pytest.raises(RuntimeError, match="boom"):
+        with http_session_factory.client_manager("custom-agent"):
+            raise AssertionError("unreachable")
+
+    assert events == ["config:custom-agent"]
+
+
+def test_client_manager_raw_generator_handles_uninitialized_client_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Raw sync contextmanager generator should take the no-client cleanup path."""
+
+    def fake_config(user_agent: str) -> object:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(http_session_factory, "config_http_client", fake_config)
+
+    generator = http_session_factory.client_manager.__wrapped__("custom-agent")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        next(generator)
+
+
+def test_client_manager_handles_none_client_without_close(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Synchronous client manager should tolerate a factory returning None."""
+    monkeypatch.setattr(
+        http_session_factory, "config_http_client", lambda user_agent: None
+    )
+
+    with http_session_factory.client_manager("custom-agent") as client:
+        assert client is None
+
+
 def test_async_client_manager_yields_client_and_closes_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -143,3 +190,62 @@ def test_async_client_manager_closes_client_after_exception(
         asyncio.run(runner())
 
     assert events == ["aclose"]
+
+
+def test_async_client_manager_propagates_factory_error_without_closing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Async client manager should propagate creation errors unchanged."""
+    events: list[str] = []
+
+    async def fake_config(user_agent: str) -> object:
+        events.append(f"config:{user_agent}")
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(http_session_factory, "config_async_http_client", fake_config)
+
+    async def runner() -> None:
+        async with http_session_factory.async_client_manager("custom-agent"):
+            raise AssertionError("unreachable")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        asyncio.run(runner())
+
+    assert events == ["config:custom-agent"]
+
+
+def test_async_client_manager_raw_generator_handles_uninitialized_client_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Raw async contextmanager generator should take the no-client cleanup path."""
+
+    async def fake_config(user_agent: str) -> object:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(http_session_factory, "config_async_http_client", fake_config)
+
+    async def runner() -> None:
+        generator = http_session_factory.async_client_manager.__wrapped__(
+            "custom-agent"
+        )
+        await anext(generator)
+
+    with pytest.raises(RuntimeError, match="boom"):
+        asyncio.run(runner())
+
+
+def test_async_client_manager_handles_none_client_without_close(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Async client manager should tolerate a factory returning None."""
+
+    async def fake_config(user_agent: str) -> object:
+        return None
+
+    monkeypatch.setattr(http_session_factory, "config_async_http_client", fake_config)
+
+    async def runner() -> None:
+        async with http_session_factory.async_client_manager("custom-agent") as client:
+            assert client is None
+
+    asyncio.run(runner())

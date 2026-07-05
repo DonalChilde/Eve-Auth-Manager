@@ -115,3 +115,56 @@ def test_add_credentials_reads_json_from_file(
         callbackUrl="http://localhost/backup",
         scopes=[],
     )
+
+
+def test_add_credentials_reports_file_load_and_success_when_not_quiet(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Add credentials should report file loading and successful storage."""
+    ctx = _make_context(tmp_path)
+    creds_path = tmp_path / "credentials.json"
+    creds_path.write_text(
+        json.dumps(
+            {
+                "name": "Backup App",
+                "description": "Secondary credential",
+                "clientId": "backup-id",
+                "clientSecret": "backup-secret",
+                "callbackUrl": "http://localhost/backup",
+                "scopes": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    added_id = UUID("33333333-3333-3333-3333-333333333333")
+    printed: list[object] = []
+    console_kwargs: list[dict[str, object]] = []
+
+    class FakeConsole:
+        def __init__(self, **kwargs: object) -> None:
+            console_kwargs.append(dict(kwargs))
+
+        def print(self, message: object) -> None:
+            printed.append(message)
+
+    class FakeManager:
+        def __enter__(self) -> "FakeManager":
+            return self
+
+        def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+            return None
+
+        def add_credential(self, credentials: EsiAppCredential) -> dict[UUID, str]:
+            return {added_id: credentials.name}
+
+    monkeypatch.setattr(add_module, "Console", FakeConsole)
+    monkeypatch.setattr(add_module, "SqliteAuthManager", lambda path: FakeManager())
+
+    add_credentials(ctx, credentials_file=creds_path, quiet=False)  # type: ignore[arg-type]
+
+    assert console_kwargs == [{"stderr": True}]
+    assert printed == [
+        f"Loading credentials from {creds_path}...",
+        f"Credentials added successfully for Backup App with ID: {added_id}",
+    ]

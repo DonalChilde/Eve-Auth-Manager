@@ -229,6 +229,56 @@ def test_start_web_server_and_listen_for_code_rejects_missing_code() -> None:
     assert "Missing authorization code" in str(results[1])
 
 
+def test_start_web_server_and_listen_for_code_rejects_missing_state() -> None:
+    """Callback server should reject callbacks that omit the state value."""
+    port = _get_free_port()
+    redirect_url = f"http://127.0.0.1:{port}/callback"
+    callback_url = f"{redirect_url}?code=auth-code"
+    results: list[object] = []
+    sender = threading.Thread(
+        target=_dispatch_callback,
+        args=(callback_url, results),
+        daemon=True,
+    )
+
+    sender.start()
+    with pytest.raises(ValueError, match="Missing state in callback query parameters"):
+        start_web_server_and_listen_for_code(
+            redirect_url=redirect_url,
+            expected_state="expected-state",
+            timeout_seconds=1,
+        )
+    sender.join(timeout=2)
+
+    assert results[0] == 400
+    assert "Missing state" in str(results[1])
+
+
+def test_start_web_server_and_listen_for_code_returns_404_for_wrong_path() -> None:
+    """Callback server should ignore unmatched paths and leave the wait pending."""
+    port = _get_free_port()
+    redirect_url = f"http://127.0.0.1:{port}/callback"
+    callback_url = f"http://127.0.0.1:{port}/wrong?code=auth-code&state=expected-state"
+    results: list[object] = []
+    sender = threading.Thread(
+        target=_dispatch_callback,
+        args=(callback_url, results),
+        daemon=True,
+    )
+
+    sender.start()
+    with pytest.raises(TimeoutError, match="Timed out after 0.1 seconds"):
+        start_web_server_and_listen_for_code(
+            redirect_url=redirect_url,
+            expected_state="expected-state",
+            timeout_seconds=0.1,
+        )
+    sender.join(timeout=2)
+
+    assert results[0] == 404
+    assert "Not Found" in str(results[1])
+
+
 def test_start_web_server_and_listen_for_code_times_out() -> None:
     """Callback server should raise TimeoutError when no callback arrives."""
     port = _get_free_port()
@@ -240,6 +290,114 @@ def test_start_web_server_and_listen_for_code_times_out() -> None:
             expected_state="expected-state",
             timeout_seconds=0.05,
         )
+
+
+def test_start_web_server_and_listen_for_code_uses_default_https_port(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Callback server should default HTTPS callbacks to port 443."""
+    calls: dict[str, object] = {}
+
+    class FakeServer:
+        def __init__(self, address: tuple[str, int], handler: object) -> None:
+            calls["address"] = address
+            calls["handler"] = handler
+
+        def serve_forever(self, poll_interval: float = 0.2) -> None:
+            calls["poll_interval"] = poll_interval
+
+        def shutdown(self) -> None:
+            calls["shutdown"] = True
+
+        def server_close(self) -> None:
+            calls["server_close"] = True
+
+    class FakeThread:
+        def __init__(self, **kwargs: object) -> None:
+            calls["thread_kwargs"] = kwargs
+
+        def start(self) -> None:
+            calls["started"] = True
+
+        def join(self, timeout: float | None = None) -> None:
+            calls["join_timeout"] = timeout
+
+    class FakeEvent:
+        def wait(self, timeout: float | None = None) -> bool:
+            calls["wait_timeout"] = timeout
+            return False
+
+        def set(self) -> None:
+            calls["set_called"] = True
+
+    monkeypatch.setattr(auth_code_module, "HTTPServer", FakeServer)
+    monkeypatch.setattr(auth_code_module.threading, "Thread", FakeThread)
+    monkeypatch.setattr(auth_code_module.threading, "Event", FakeEvent)
+
+    with pytest.raises(TimeoutError, match="Timed out after 0.01 seconds"):
+        start_web_server_and_listen_for_code(
+            redirect_url="https://example.com/callback",
+            expected_state="expected-state",
+            timeout_seconds=0.01,
+        )
+
+    assert calls["address"] == ("example.com", 443)
+    assert calls["shutdown"] is True
+    assert calls["server_close"] is True
+    assert calls["join_timeout"] == 5
+
+
+def test_start_web_server_and_listen_for_code_raises_when_no_code_arrives_after_wait(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Callback server should raise RuntimeError when wait completes with no result."""
+    calls: dict[str, object] = {}
+
+    class FakeServer:
+        def __init__(self, address: tuple[str, int], handler: object) -> None:
+            calls["address"] = address
+
+        def serve_forever(self, poll_interval: float = 0.2) -> None:
+            calls["poll_interval"] = poll_interval
+
+        def shutdown(self) -> None:
+            calls["shutdown"] = True
+
+        def server_close(self) -> None:
+            calls["server_close"] = True
+
+    class FakeThread:
+        def __init__(self, **kwargs: object) -> None:
+            calls["thread_kwargs"] = kwargs
+
+        def start(self) -> None:
+            calls["started"] = True
+
+        def join(self, timeout: float | None = None) -> None:
+            calls["join_timeout"] = timeout
+
+    class FakeEvent:
+        def wait(self, timeout: float | None = None) -> bool:
+            calls["wait_timeout"] = timeout
+            return True
+
+        def set(self) -> None:
+            calls["set_called"] = True
+
+    monkeypatch.setattr(auth_code_module, "HTTPServer", FakeServer)
+    monkeypatch.setattr(auth_code_module.threading, "Thread", FakeThread)
+    monkeypatch.setattr(auth_code_module.threading, "Event", FakeEvent)
+
+    with pytest.raises(
+        RuntimeError, match="OAuth callback completed without an authorization code"
+    ):
+        start_web_server_and_listen_for_code(
+            redirect_url="http://example.com/callback",
+            expected_state="expected-state",
+            timeout_seconds=0.01,
+        )
+
+    assert calls["address"] == ("example.com", 80)
 
 
 def test_request_authentication_code_main_guard_raises() -> None:

@@ -261,3 +261,52 @@ def test_display_writes_summary_markdown_to_file(
     )
 
     assert output_path.read_text(encoding="utf-8") == "# Characters Summary\n\ncontent"
+
+
+def test_display_prints_rich_markdown_to_stdout(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Display should render markdown through Rich when plain mode is off."""
+    ctx = _make_context(tmp_path)
+    resolved_cred_id = UUID("15151515-1515-1515-1515-151515151515")
+    printed: list[object] = []
+    console_kwargs: list[dict[str, object]] = []
+    characters = [_make_character(cred_id=resolved_cred_id, character_id=7)]
+
+    class FakeConsole:
+        def __init__(self, **kwargs: object) -> None:
+            console_kwargs.append(dict(kwargs))
+
+        def print(self, message: object) -> None:
+            printed.append(message)
+
+    class FakeManager:
+        def __enter__(self) -> "FakeManager":
+            return self
+
+        def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+            return None
+
+        def get_credential(
+            self, *, cred_id: UUID | None = None, cred_name: str | None = None
+        ) -> object:
+            return SimpleNamespace(cred_id=cred_id or resolved_cred_id)
+
+        def get_all_characters(self, credential_id: UUID) -> list[AuthorizedCharacter]:
+            assert credential_id == resolved_cred_id
+            return characters
+
+    monkeypatch.setattr(display_module, "Console", FakeConsole)
+    monkeypatch.setattr(display_module, "Markdown", lambda text: ("markdown", text))
+    monkeypatch.setattr(display_module, "SqliteAuthManager", lambda path: FakeManager())
+    monkeypatch.setattr(
+        display_module,
+        "display_characters_summary",
+        lambda requested_characters: "# Characters Summary\n\ncontent",
+    )
+
+    display(ctx, cred_name="main", plain=False, quiet=False)  # type: ignore[arg-type]
+
+    assert console_kwargs == [{"stderr": True}]
+    assert printed == [("markdown", "# Characters Summary\n\ncontent")]

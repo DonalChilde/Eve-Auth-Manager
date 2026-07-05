@@ -257,3 +257,60 @@ def test_authorize_writes_authorized_json_to_file(
         "access_token": "access-token",
         "expires_at": 4600,
     }
+
+
+def test_authorize_reports_saved_output_path_when_not_quiet(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Authorize should print the saved file path when writing output."""
+    ctx = _make_context(tmp_path)
+    cred_id = UUID("dddddddd-dddd-dddd-dddd-dddddddddddd")
+    output_path = tmp_path / "authorized.json"
+    printed: list[object] = []
+    console_kwargs: list[dict[str, object]] = []
+
+    class FakeConsole:
+        def __init__(self, **kwargs: object) -> None:
+            console_kwargs.append(dict(kwargs))
+
+        def print(self, message: object) -> None:
+            printed.append(message)
+
+    class FakeManager:
+        def __enter__(self) -> "FakeManager":
+            return self
+
+        def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+            return None
+
+        def get_credential(
+            self, *, cred_id: UUID | None, cred_name: str | None
+        ) -> object:
+            return SimpleNamespace(cred_id=cred_id)
+
+        def refresh_character(
+            self,
+            *,
+            cred_id: UUID,
+            character_id: int,
+            min_seconds: int,
+        ) -> AuthorizedCharacter:
+            return _make_character(cred_id=cred_id, character_id=character_id)
+
+    monkeypatch.setattr(authorize_module, "Console", FakeConsole)
+    monkeypatch.setattr(
+        authorize_module, "SqliteAuthManager", lambda path: FakeManager()
+    )
+
+    authorize(
+        ctx,
+        cred_id=cred_id,
+        character_id=9,
+        file_out=output_path,
+        overwrite=True,
+        quiet=False,
+    )  # type: ignore[arg-type]
+
+    assert console_kwargs == [{"stderr": True}]
+    assert printed == [f"AuthorizedDict saved to {output_path}"]

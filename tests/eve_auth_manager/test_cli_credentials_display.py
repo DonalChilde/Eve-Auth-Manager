@@ -329,3 +329,44 @@ def test_get_credentials_details_returns_summary_for_all_credentials(
         CredentialDetails(auth_credentials=first, authorized_character_count=1),
         CredentialDetails(auth_credentials=second, authorized_character_count=2),
     ]
+
+
+def test_display_prints_rich_markdown_to_stdout(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Display should render markdown through Rich when plain mode is off."""
+    ctx = _make_context(tmp_path)
+    details = CredentialDetails(
+        auth_credentials=_make_credential(
+            cred_id=UUID("12121212-3434-5656-7878-909090909090"),
+            name="primary-app",
+            description="Primary auth",
+        ),
+        authorized_character_count=2,
+    )
+    printed: list[object] = []
+    console_kwargs: list[dict[str, object]] = []
+
+    class FakeConsole:
+        def __init__(self, **kwargs: object) -> None:
+            console_kwargs.append(dict(kwargs))
+
+        def print(self, message: object) -> None:
+            printed.append(message)
+
+    monkeypatch.setattr(display_module, "Console", FakeConsole)
+    monkeypatch.setattr(display_module, "Markdown", lambda text: ("markdown", text))
+    monkeypatch.setattr(
+        display_module, "_get_credentials_details", lambda *args: details
+    )
+    monkeypatch.setattr(
+        display_module,
+        "detailed_display",
+        lambda credential_details: "# Detail\n\ncontent",
+    )
+
+    display(ctx, plain=False, quiet=False)  # type: ignore[arg-type]
+
+    assert console_kwargs == [{"stderr": True}]
+    assert printed == [("markdown", "# Detail\n\ncontent")]
