@@ -5,7 +5,7 @@ from uuid import UUID
 from eve_auth_manager.cli.credentials.display import (
     CredentialDetails,
     detailed_display,
-    display_credientials_summary,
+    display_credentials_summary,
 )
 from eve_auth_manager.models import AuthCredential
 
@@ -77,7 +77,7 @@ def test_credentials_summary_lists_requested_columns() -> None:
         authorized_character_count=5,
     )
 
-    output = display_credientials_summary([first, second])
+    output = display_credentials_summary([first, second])
 
     assert "# Credentials Summary" in output
     assert "cred_id" in output
