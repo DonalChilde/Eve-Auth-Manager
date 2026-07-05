@@ -1,20 +1,25 @@
 ## Eve Auth Manager
 
-Eve Auth Manager is a CLI and API-focused project for acquiring, storing,
-retrieving, and refreshing OAuth tokens used with EVE Online ESI endpoints.
+Eve Auth Manager is a CLI-first tool for acquiring, storing, retrieving,
+refreshing, and revoking EVE Online ESI OAuth tokens.
 
-This project is in a usable beta state. All features are working, but the shapes
-could change in the future.
+It stores ESI application credentials and authorized character state in a local
+SQLite database, and can emit fresh authorization payloads for use by other
+tools and scripts.
+
+The current command set is feature-stable for this version. Documentation and
+usability improvements are still ongoing.
 
 ## Features
 
-- Manage ESI app credentials in a local auth database.
-- Authorize characters and persist character token state.
-- Refresh or revoke one or many character authorizations.
-- Search EVE entity IDs through the ESI universe IDs endpoint - Look up character ids from names.
-- Pipe authorization information to other apps as json.
-- Reset and recreate the auth database for clean test/dev state.
-- API offers an easy one context managed class for all operations except initial character authorization. Thats CLI only.
+- Store ESI application credentials in a local SQLite auth database.
+- Add and manage authorized EVE characters.
+- Refresh or revoke one character or all characters for a credential.
+- Search character IDs from names using the ESI universe IDs endpoint.
+- Emit authorization JSON for other scripts and applications.
+- Reset and recreate the auth database for clean development or test state.
+- Use the SQLite-backed auth manager API for programmatic operations after
+  initial CLI authorization.
 
 ## Requirements
 
@@ -23,10 +28,9 @@ could change in the future.
 
 ## Installation
 
-### Option 1: uv-managed project environment (recommended)
+### Option 1: uv-managed project environment
 
-1. Clone the repository.
-2. Create or update the virtual environment and install dependencies.
+Clone the repository and install the project plus development dependencies:
 
 ```bash
 git clone https://github.com/DonalChilde/Eve-Auth-Manager.git
@@ -34,17 +38,15 @@ cd Eve-Auth-Manager
 uv sync
 ```
 
-Run the CLI from the managed environment:
+Run the CLI with:
 
 ```bash
 uv run eve-auth --help
 ```
 
-### Option 2: Source install
+### Option 2: Install from source
 
-Install the project from source into your active Python environment.
-
-From a local checkout:
+Install the project into your current Python environment:
 
 ```bash
 git clone https://github.com/DonalChilde/Eve-Auth-Manager.git
@@ -52,7 +54,7 @@ cd Eve-Auth-Manager
 python -m pip install .
 ```
 
-Or install in editable mode for local development:
+For local development, editable install is also supported:
 
 ```bash
 python -m pip install -e .
@@ -66,35 +68,47 @@ eve-auth --help
 
 ## Configuration
 
-Settings can be loaded from environment variables with the prefix
-ESI_AUTH_MANAGER_.
+Settings are loaded from environment variables prefixed with
+`ESI_AUTH_MANAGER_`.
 
-Supported setting keys:
+Supported settings:
 
-- ESI_AUTH_MANAGER_AUTH_DB_PATH: path to the SQLite auth database file.
+- `ESI_AUTH_MANAGER_AUTH_DB_PATH`: Path to the SQLite auth database file.
 
-Default auth database location is platform-specific app data directory plus
-auth_manager.db.
+By default, the auth database is created in the platform-specific application
+data directory as `auth_manager.db`. Log files are written in a sibling
+`logs` directory.
+
+## CLI Overview
+
+Top-level commands:
+
+- `authorize`: Refresh a selected character if needed and emit an
+  `AuthorizedDict` JSON payload.
+- `credentials`: Add, display, and remove stored ESI application credentials.
+- `characters`: Add, display, refresh, revoke, and search character
+  authorizations.
+- `util`: Maintenance commands such as database reset.
 
 ## Quick Start
 
-### 1. Create credentials.json from EVE Developers
+### 1. Create `credentials.json` from EVE Developers
 
 1. Go to https://developers.eveonline.com/applications and sign in.
-2. Create a new ESI application (or open an existing one).
+2. Create a new ESI application, or open an existing one.
 3. Copy the application JSON payload from the portal.
-4. Save it locally as credentials.json.
+4. Save it locally as `credentials.json`.
 
 Expected JSON shape:
 
 ```json
 {
-	"name": "My ESI App",
-	"description": "Optional human-readable description",
-	"clientId": "your_client_id",
-	"clientSecret": "your_client_secret",
-	"callbackUrl": "http://localhost:8080/callback",
-	"scopes": ["scope1", "scope2"]
+  "name": "My ESI App",
+  "description": "Optional human-readable description",
+  "clientId": "your_client_id",
+  "clientSecret": "your_client_secret",
+  "callbackUrl": "http://localhost:8080/callback",
+  "scopes": ["scope1", "scope2"]
 }
 ```
 
@@ -140,44 +154,49 @@ uv run eve-auth characters add <character-id> --cred-id <credential-uuid>
 uv run eve-auth characters add <character-id> --cred-name <credential-name>
 ```
 
-### 6. Make an authorized ESI request from authorize output
+### 6. Get an authorization payload
 
-You can make authenticated requests from the EVE Esi using the access token from the 
-authorize command.
-
-    NOTE: Access tokens have an expiration date. The below command gets a token good for the maximum time, 20 minutes.
+Use `authorize` to refresh a character if needed and emit an `AuthorizedDict`
+JSON payload.
 
 ```bash
 uv run eve-auth authorize --cred-name <credential-name> --character-id <character-id> --indent 2 --min-seconds 1200
 ```
 
-results in:
+`--min-seconds 1200` requests refresh behavior for the maximum supported token
+lifetime window before a refresh is skipped.
+
+Example output:
 
 ```json
 {
-	"cred_id": "credential UUID as a string",
-	"character_id": 123456789,
-	"character_name": "Character Name",
-	"access_token": "ESI bearer token",
-	"expires_at": 1735689600
+  "cred_id": "credential UUID as a string",
+  "character_id": 123456789,
+  "character_name": "Character Name",
+  "access_token": "ESI bearer token",
+  "expires_at": 1735689600
 }
 ```
 
 Field meanings:
 
-- `cred_id`: credential UUID used for the authorization.
+- `cred_id`: Credential UUID used for the authorization.
 - `character_id`: EVE character ID associated with the token.
 - `character_name`: EVE character name from the validated token.
-- `access_token`: bearer token to send in the Authorization header.
+- `access_token`: Bearer token to send in the `Authorization` header.
 - `expires_at`: Unix timestamp, in seconds, when the access token expires.
 
-You can copy and paste the access token with the [ESI Api Explorer](https://developers.eveonline.com/api-explorer) to view authenticated endpoints.
+You can paste the access token into the
+[ESI API Explorer](https://developers.eveonline.com/api-explorer) to explore
+authenticated endpoints.
 
-NOTE: Specific endpoints require specific scopes that were defined when you made the app credentials.
+Specific endpoints require scopes that were granted when the application
+credentials were created.
 
+### 7. Use the authorization payload in shell scripts
 
 ```bash
-# A bash example using python to extract the needed info.
+# Extract fields with Python.
 AUTH_JSON="$(uv run eve-auth authorize --cred-id <credential-uuid> --character-id <character-id>)"
 ACCESS_TOKEN="$(printf '%s' "$AUTH_JSON" | python -c "import sys, json; print(json.load(sys.stdin)['access_token'])")"
 CHARACTER_ID="$(printf '%s' "$AUTH_JSON" | python -c "import sys, json; print(json.load(sys.stdin)['character_id'])")"
@@ -189,20 +208,20 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" \
 ```
 
 ```bash
-# A bash example piping JSON through jq
+# Extract fields with jq.
 uv run eve-auth authorize --cred-id <credential-uuid> --character-id <character-id> \
 	| jq -r '"\(.access_token) \(.character_id)"' \
 	| {
-		read -r ACCESS_TOKEN CHARACTER_ID
-		USER_AGENT="eve-auth-manager-readme-example/0.1"
-		curl -H "Authorization: Bearer $ACCESS_TOKEN" \
-			-H "User-Agent: $USER_AGENT" \
-			"https://esi.evetech.net/characters/$CHARACTER_ID/attributes/?datasource=tranquility"
-	}
+			read -r ACCESS_TOKEN CHARACTER_ID
+			USER_AGENT="eve-auth-manager-readme-example/0.1"
+			curl -H "Authorization: Bearer $ACCESS_TOKEN" \
+				-H "User-Agent: $USER_AGENT" \
+				"https://esi.evetech.net/characters/$CHARACTER_ID/attributes/?datasource=tranquility"
+		}
 ```
 
 ```bash
-# A bash example saving JSON to a file and reading fields with jq
+# Save output to a file and read it later.
 uv run eve-auth authorize --cred-id <credential-uuid> --character-id <character-id> \
 	> /tmp/eve-auth-authorized.json
 
@@ -214,6 +233,8 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" \
 	-H "User-Agent: $USER_AGENT" \
 	"https://esi.evetech.net/characters/$CHARACTER_ID/attributes/?datasource=tranquility"
 ```
+
+### 8. Use the authorization payload in Python
 
 ```python
 # A Python script that accepts piped AuthorizedDict JSON from stdin.
@@ -228,22 +249,19 @@ character_id = authorized["character_id"]
 user_agent = "eve-auth-manager-readme-example/0.1"
 
 request = Request(
-	url=(
-		f"https://esi.evetech.net/characters/{character_id}/attributes/"
-		"?datasource=tranquility"
-	),
-	headers={
-		"Authorization": f"Bearer {access_token}",
-		"User-Agent": user_agent,
-	},
+    url=(
+        f"https://esi.evetech.net/characters/{character_id}/attributes/"
+        "?datasource=tranquility"
+    ),
+    headers={"Authorization": f"Bearer {access_token}", "User-Agent": user_agent},
 )
 
 with urlopen(request) as response:
-	print(response.read().decode("utf-8"))
+    print(response.read().decode("utf-8"))
 ```
 
 ```bash
-# Example invocation for the Python script above
+# Example invocation for the Python script above.
 uv run eve-auth authorize --cred-id <credential-uuid> --character-id <character-id> \
 	| python ./esi_attributes_from_authorize.py
 ```
@@ -266,48 +284,39 @@ from httpx2 import Client
 
 
 def main() -> None:
-	authorized = json.load(sys.stdin)
-	access_token = authorized["access_token"]
-	character_id = authorized["character_id"]
-	user_agent = "eve-auth-manager-readme-example/0.1"
-	url = (
-		f"https://esi.evetech.net/characters/{character_id}/attributes/"
-		"?datasource=tranquility"
-	)
+    authorized = json.load(sys.stdin)
+    access_token = authorized["access_token"]
+    character_id = authorized["character_id"]
+    user_agent = "eve-auth-manager-readme-example/0.1"
+    url = (
+        f"https://esi.evetech.net/characters/{character_id}/attributes/"
+        "?datasource=tranquility"
+    )
+    headers = {"Authorization": f"Bearer {access_token}", "User-Agent": user_agent}
+    with Client(headers=headers) as client:
+        response = client.get(url)
+        response.raise_for_status()
 
-	with Client(
-		headers={
-			"Authorization": f"Bearer {access_token}",
-			"User-Agent": user_agent,
-		}
-	) as client:
-		response = client.get(url)
-		response.raise_for_status()
-
-	typer.echo(response.text)
+    typer.echo(response.text)
 
 
 if __name__ == "__main__":
-	typer.run(main)
+    typer.run(main)
 ```
 
 ```bash
-# Example invocation for the PEP 723 script above
+# Example invocation for the PEP 723 script above.
 uv run eve-auth authorize --cred-id <credential-uuid> --character-id <character-id> \
 	| uv run ./esi_attributes_from_authorize.py
 ```
 
-
-
-
-
-### 7. Display character authorizations
+### 9. Display character authorizations
 
 ```bash
 uv run eve-auth characters display --cred-id <credential-uuid>
 ```
 
-### 8. Refresh character tokens
+### 10. Refresh character tokens
 
 Refresh all for a credential:
 
@@ -321,7 +330,7 @@ Refresh one character:
 uv run eve-auth characters refresh --cred-id <credential-uuid> <character-id>
 ```
 
-### 9. Revoke character authorizations
+### 11. Revoke character authorizations
 
 Revoke all authorized characters for a credential:
 
@@ -335,26 +344,45 @@ Revoke specific characters:
 uv run eve-auth characters revoke --cred-id <credential-uuid> --character-id <id1> --character-id <id2>
 ```
 
-### 10. Search entity IDs
+### 12. Search character IDs
 
 ```bash
 uv run eve-auth characters search --search Tritanium
 ```
 
-### 11. Reset auth database
+### 13. Reset the auth database
 
 ```bash
 uv run eve-auth util reset --force
 ```
 
-## Command Groups
+## Using the API
 
-- authorize: refresh and emit an AuthorizedDict JSON payload.
-- credentials: add, display, and remove ESI application credentials.
-- characters: add, display, refresh, revoke, and search entity IDs.
-- util: maintenance commands such as database reset.
+Most programmatic operations are available through the SQLite-backed auth
+manager after credentials and characters have been added.
+
+```python
+from pathlib import Path
+
+from eve_auth_manager.sqlite.manager import SqliteAuthManager
+
+
+db_path = Path("./auth_manager.db")
+
+with SqliteAuthManager(db_path) as auth_manager:
+    credential = auth_manager.get_credential(cred_name="my-app")
+    characters = auth_manager.get_all_characters(credential.cred_id)
+
+print([character.character_name for character in characters])
+```
 
 ## Development
+
+Set up the project:
+
+```bash
+uv sync
+```
 
 Run tests:
 
@@ -362,18 +390,30 @@ Run tests:
 uv run pytest
 ```
 
-Format code:
+Run coverage for the package:
+
+```bash
+uv run pytest tests/eve_auth_manager --cov=src/eve_auth_manager --cov-report=term-missing
+```
+
+Check formatting and linting:
+
+```bash
+uv run ruff format --check
+uv run ruff check
+```
+
+Format Python files:
 
 ```bash
 uv run ruff format
 ```
 
-Lint code:
+## Testing
 
-```bash
-uv run ruff check
-```
+The automated test suite currently covers the full `src/eve_auth_manager`
+package with complete statement and branch coverage.
 
 ## License
 
-MIT. See LICENSE.
+MIT. See `LICENSE`.
