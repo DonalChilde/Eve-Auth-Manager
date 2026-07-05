@@ -238,6 +238,49 @@ uv run eve-auth authorize --cred-id <credential-uuid> --character-id <character-
 	| python ./esi_attributes_from_authorize.py
 ```
 
+```python
+# A PEP 723 Python script that accepts piped AuthorizedDict JSON from stdin.
+# /// script
+# requires-python = ">=3.14"
+# dependencies = [
+#   "httpx2>=2.5.0",
+#   "typer>=0.26.8",
+# ]
+# ///
+
+import json
+import sys
+
+import typer
+from httpx2 import Client
+
+
+def main() -> None:
+	authorized = json.load(sys.stdin)
+	access_token = authorized["access_token"]
+	character_id = authorized["character_id"]
+	url = (
+		f"https://esi.evetech.net/characters/{character_id}/attributes/"
+		"?datasource=tranquility"
+	)
+
+	with Client(headers={"Authorization": f"Bearer {access_token}"}) as client:
+		response = client.get(url)
+		response.raise_for_status()
+
+	typer.echo(response.text)
+
+
+if __name__ == "__main__":
+	typer.run(main)
+```
+
+```bash
+# Example invocation for the PEP 723 script above
+uv run eve-auth authorize --cred-id <credential-uuid> --character-id <character-id> \
+	| uv run ./esi_attributes_from_authorize.py
+```
+
 
 
 
