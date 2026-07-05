@@ -237,3 +237,151 @@ def test_add_completes_successful_authorization_flow(
         "cred_id": cred_id,
         "character": character_token,
     }
+
+
+def test_add_exits_when_authorization_code_is_not_received(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Add should fail when the local callback server does not receive a code."""
+    ctx = _make_context(tmp_path)
+    cred_id = UUID("15151515-1515-1515-1515-151515151515")
+
+    class FakeManager:
+        oauth_metadata = SimpleNamespace(
+            authorization_endpoint="https://login.eveonline.com/authorize"
+        )
+
+        def __enter__(self) -> "FakeManager":
+            return self
+
+        def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+            return None
+
+        def get_credential(
+            self, *, cred_id: UUID | None = None, cred_name: str | None = None
+        ) -> object:
+            return SimpleNamespace(
+                cred_id=cred_id,
+                clientId="client-id",
+                callbackUrl="http://localhost/callback",
+                scopes=["scope.one"],
+            )
+
+        def get_all_character_ids(self, credential_id: UUID) -> dict[int, str]:
+            assert credential_id == cred_id
+            return {}
+
+    request_params = SimpleNamespace(
+        redirect_url="https://login.eveonline.com/authorize?foo=bar",
+        state="expected-state",
+        code_verifier="verifier-value",
+    )
+
+    monkeypatch.setattr(add_module, "SqliteAuthManager", lambda path: FakeManager())
+    monkeypatch.setattr(
+        add_module, "generate_request_params", lambda **kwargs: request_params
+    )
+    monkeypatch.setattr(
+        add_module,
+        "start_web_server_and_listen_for_code",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        add_module.token_tools,
+        "request_new_token",
+        lambda **kwargs: pytest.fail("request_new_token should not be called"),
+    )
+
+    with pytest.raises(typer.Exit) as exc_info:
+        add(ctx, 42, cred_id=cred_id, browser_auto_open=False, quiet=True)  # type: ignore[arg-type]
+
+    assert exc_info.value.exit_code == 1
+
+
+def test_add_exits_when_validated_character_does_not_match_request(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Add should fail when the returned token belongs to a different character."""
+    ctx = _make_context(tmp_path)
+    cred_id = UUID("16161616-1616-1616-1616-161616161616")
+
+    class FakeManager:
+        oauth_metadata = SimpleNamespace(
+            authorization_endpoint="https://login.eveonline.com/authorize"
+        )
+        session = object()
+        jwks_client = object()
+
+        def __enter__(self) -> "FakeManager":
+            return self
+
+        def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+            return None
+
+        def get_credential(
+            self, *, cred_id: UUID | None = None, cred_name: str | None = None
+        ) -> object:
+            return SimpleNamespace(
+                cred_id=cred_id,
+                clientId="client-id",
+                callbackUrl="http://localhost/callback",
+                scopes=["scope.one"],
+            )
+
+        def get_all_character_ids(self, credential_id: UUID) -> dict[int, str]:
+            assert credential_id == cred_id
+            return {}
+
+        def add_character(
+            self, *, cred_id: UUID, character: AuthorizedCharacter
+        ) -> None:
+            pytest.fail("add_character should not be called")
+
+    request_params = SimpleNamespace(
+        redirect_url="https://login.eveonline.com/authorize?foo=bar",
+        state="expected-state",
+        code_verifier="verifier-value",
+    )
+    oauth_token = OauthToken(
+        token_data={
+            "access_token": "access-token",
+            "refresh_token": "refresh-token",
+            "expires_in": 3_600,
+            "token_type": "Bearer",
+        }
+    )
+    mismatched_character = _make_character(cred_id=cred_id, character_id=999)
+
+    monkeypatch.setattr(add_module, "SqliteAuthManager", lambda path: FakeManager())
+    monkeypatch.setattr(
+        add_module, "generate_request_params", lambda **kwargs: request_params
+    )
+    monkeypatch.setattr(
+        add_module,
+        "start_web_server_and_listen_for_code",
+        lambda **kwargs: "auth-code",
+    )
+    monkeypatch.setattr(
+        add_module.token_tools,
+        "request_new_token",
+        lambda **kwargs: oauth_token,
+    )
+    monkeypatch.setattr(
+        add_module.token_tools,
+        "validate_token",
+        lambda **kwargs: SimpleNamespace(
+            character_id=999, character_name="Other Character"
+        ),
+    )
+    monkeypatch.setattr(
+        add_module.token_tools,
+        "create_character_token",
+        lambda **kwargs: mismatched_character,
+    )
+
+    with pytest.raises(typer.Exit) as exc_info:
+        add(ctx, 42, cred_id=cred_id, browser_auto_open=False, quiet=True)  # type: ignore[arg-type]
+
+    assert exc_info.value.exit_code == 1

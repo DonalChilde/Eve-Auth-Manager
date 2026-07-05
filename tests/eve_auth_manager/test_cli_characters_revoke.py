@@ -114,3 +114,80 @@ def test_revoke_specific_characters_delegates_to_manager(
         "cred_id": resolved_cred_id,
         "revocation_set": {7, 9},
     }
+
+
+def test_revoke_exits_cleanly_when_confirmation_is_declined(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Revoke should exit successfully when the confirmation prompt is declined."""
+    ctx = _make_context(tmp_path)
+    cred_id = UUID("17171717-1717-1717-1717-171717171717")
+
+    class FakeManager:
+        def __enter__(self) -> "FakeManager":
+            return self
+
+        def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+            return None
+
+        def get_credential(
+            self, *, cred_id: UUID | None = None, cred_name: str | None = None
+        ) -> object:
+            return SimpleNamespace(cred_id=cred_id)
+
+        def get_all_character_ids(self, credential_id: UUID) -> dict[int, str]:
+            assert credential_id == cred_id
+            return {7: "Jane Capsuleer"}
+
+        def revoke_characters(
+            self, credential_id: UUID, revocation_set: set[int] | None
+        ) -> dict[int, str]:
+            pytest.fail("revoke_characters should not be called")
+
+    monkeypatch.setattr(revoke_module, "SqliteAuthManager", lambda path: FakeManager())
+    monkeypatch.setattr(revoke_module.typer, "confirm", lambda *args, **kwargs: False)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        revoke(ctx, cred_id=cred_id, quiet=True, force=False)  # type: ignore[arg-type]
+
+    assert exc_info.value.exit_code in (None, 0)
+
+
+def test_revoke_exits_cleanly_when_manager_returns_no_revocations(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Revoke should exit successfully when there is nothing left to revoke."""
+    ctx = _make_context(tmp_path)
+    cred_id = UUID("18181818-1818-1818-1818-181818181818")
+
+    class FakeManager:
+        def __enter__(self) -> "FakeManager":
+            return self
+
+        def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+            return None
+
+        def get_credential(
+            self, *, cred_id: UUID | None = None, cred_name: str | None = None
+        ) -> object:
+            return SimpleNamespace(cred_id=cred_id)
+
+        def get_all_character_ids(self, credential_id: UUID) -> dict[int, str]:
+            assert credential_id == cred_id
+            return {7: "Jane Capsuleer"}
+
+        def revoke_characters(
+            self, credential_id: UUID, revocation_set: set[int] | None
+        ) -> dict[int, str]:
+            assert credential_id == cred_id
+            assert revocation_set == {7}
+            return {}
+
+    monkeypatch.setattr(revoke_module, "SqliteAuthManager", lambda path: FakeManager())
+
+    with pytest.raises(typer.Exit) as exc_info:
+        revoke(ctx, cred_id=cred_id, character_id=[7], quiet=True, force=True)  # type: ignore[arg-type]
+
+    assert exc_info.value.exit_code == 0
