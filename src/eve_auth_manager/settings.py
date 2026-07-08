@@ -17,6 +17,8 @@ OAUTH_METADATA_URL = (
 )
 """URL to fetch OAuth metadata from the ESI auth server."""
 
+# TODO: add enough fields for an actual appdir settup.
+
 
 @dataclass(slots=True, kw_only=True)
 class EveAuthManagerSettings:
