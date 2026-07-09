@@ -9,7 +9,7 @@ and other paths."""
 # Update in pyproject.toml, as uv build backend does not yet support dynamic metadata #
 # https://github.com/astral-sh/uv/issues/11718                                        #
 #######################################################################################
-__description__ = "A command line first interface to the Eve Online API"
+__description__ = "A simple authentication manager for EVE Online's ESI API."
 __version__ = "0.4.0"
 __release__ = __version__
 #######################################################################################=
