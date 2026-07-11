@@ -10,7 +10,7 @@ and other paths."""
 # https://github.com/astral-sh/uv/issues/11718                                        #
 #######################################################################################
 __description__ = "A simple authentication manager for EVE Online's ESI API."
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 __release__ = __version__
 #######################################################################################=
 __url__ = "https://github.com/DonalChilde/Eve-Auth-Manager"

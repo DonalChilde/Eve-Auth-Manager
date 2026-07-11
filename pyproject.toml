@@ -1,6 +1,6 @@
 [project]
 name = "eve-auth-manager"
-version = "0.4.0"
+version = "0.4.1"
 description = "CLI and API helpers for acquiring, storing, and refreshing EVE Online ESI OAuth tokens"
 readme = "README.md"
 requires-python = ">=3.14"
