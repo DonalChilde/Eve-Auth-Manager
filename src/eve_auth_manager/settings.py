@@ -7,7 +7,7 @@ from uuid import NAMESPACE_DNS, uuid5
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typer import get_app_dir
 
-from eve_auth_manager import __app_name__, __url__, __version__
+from eve_auth_manager import __app_name__, __project_namespace__, __url__, __version__
 
 AUDIENCE = "EVE Online"
 """Expected JWT audience for EVE SSO access tokens."""
@@ -17,9 +17,10 @@ OAUTH_METADATA_URL = (
     "https://login.eveonline.com/.well-known/oauth-authorization-server"
 )
 """URL to fetch OAuth metadata from the ESI auth server."""
-APP_DOMAIN = "pfmsoft.eve-auth-manager"
+APP_DOMAIN = f"{__project_namespace__}.{__app_name__}"
 APP_NAMESPACE = uuid5(NAMESPACE_DNS, APP_DOMAIN)
-SETTINGS_KEY = "eve-auth-manager-settings"
+ENV_PREFIX = APP_DOMAIN.replace(".", "_").replace("-", "_").upper() + "_"
+SETTINGS_KEY = ENV_PREFIX + "SETTINGS"
 
 
 @dataclass(slots=True, kw_only=True)
@@ -40,12 +41,12 @@ class EveAuthManagerSettingsPydantic(BaseSettings):
     """Environment-backed settings loader for Eve Auth Manager.
 
     Loads configuration from environment variables prefixed with
-    EVE_AUTH_MANAGER_ and supplies default filesystem locations when values
+    `settings.ENV_PREFIX` and supplies default filesystem locations when values
     are not provided.
     """
 
     model_config = SettingsConfigDict(
-        env_prefix="EVE_AUTH_MANAGER_",
+        env_prefix=ENV_PREFIX,
         env_file=(".env", ".env.dev"),
         env_file_encoding="utf-8",
     )

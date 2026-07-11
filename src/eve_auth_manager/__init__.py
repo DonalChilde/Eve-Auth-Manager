@@ -1,5 +1,6 @@
 """The Authentication Manager module."""
 
+__project_namespace__ = "pfmsoft"
 __author__ = "Chad Lowe"
 __email__ = "pfmsoft.dev@gmail.com"
 __app_name__ = "eve-auth-manager"
