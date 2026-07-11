@@ -60,7 +60,9 @@ class SqliteAuthManager(AuthManagerProtocol):
         Returns:
             The initialized manager instance.
         """
-        self._sqlite_connection = create_read_write_connection(self._db_path)
+        self._sqlite_connection = create_read_write_connection(
+            self._db_path, init_sql=query.load_table_definitions()
+        )
         self._session = config_http_client()
         self._ensure_oauth_metadata()
         return self

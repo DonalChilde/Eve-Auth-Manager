@@ -4,13 +4,9 @@ import logging
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
-from importlib.resources import files as resource_files
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
-
-_table_def_parent = "eve_auth_manager.sqlite"
-_table_def_sql = "table_definitions.sql"
 
 
 def read_only_uri(db_path: str) -> str:
@@ -61,13 +57,19 @@ def create_read_only_connection(db_path: str | Path) -> sqlite3.Connection:
     return connection
 
 
-def create_read_write_connection(db_path: str | Path) -> sqlite3.Connection:
-    """Create a read-write SQLite connection and ensure the packaged schema exists.
+def create_read_write_connection(
+    db_path: str | Path, init_sql: str | None = None
+) -> sqlite3.Connection:
+    """Create a read-write SQLite connection and optionaly ensure the packaged schema exists.
+
+    If the database file does not exist, it will be created. If init_sql is provided,
+    it will be executed to create any missing tables or other schema objects.
 
     The caller is responsible for closing the connection when done.
 
     Args:
         db_path: Path to the SQLite database file.
+        init_sql: Optional SQL script to execute on the connection to ensure schema exists.
 
     Returns:
         Open SQLite connection configured with sqlite3.Row row factory.
@@ -82,10 +84,10 @@ def create_read_write_connection(db_path: str | Path) -> sqlite3.Connection:
     connection = sqlite3.connect(uri, uri=True)
     logger.info(f"Created read-write connection to database at {db_path}")
     connection.row_factory = sqlite3.Row
-    table_defs = resource_files(_table_def_parent).joinpath(_table_def_sql).read_text()
-    with connection:
-        connection.executescript(table_defs)
-        logger.info("Ensured database schema is created.")
+    if init_sql is not None:
+        with connection:
+            connection.executescript(init_sql)
+            logger.info("Executed SQL init commands.")
     return connection
 
 

@@ -14,6 +14,7 @@ from eve_auth_manager.sqlite.connection_helpers import create_read_write_connect
 from eve_auth_manager.sqlite.query_helpers import (
     delete_authorized_character,
     delete_credentials,
+    load_table_definitions,
     query_authorized_character,
     query_authorized_characters,
     query_credential,
@@ -60,7 +61,9 @@ def _make_character(*, cred_id: UUID, character_id: int) -> AuthorizedCharacter:
 
 def _open_db(tmp_path: Path) -> sqlite3.Connection:
     """Create a schema-initialized SQLite connection for tests."""
-    return create_read_write_connection(tmp_path / "auth.db")
+    return create_read_write_connection(
+        tmp_path / "auth.db", init_sql=load_table_definitions()
+    )
 
 
 def test_credential_queries_round_trip_and_delete(tmp_path: Path) -> None:

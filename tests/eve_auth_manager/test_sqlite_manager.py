@@ -22,6 +22,7 @@ from eve_auth_manager.protocols import (
 )
 from eve_auth_manager.sqlite.connection_helpers import create_read_write_connection
 from eve_auth_manager.sqlite.manager import SqliteAuthManager
+from eve_auth_manager.sqlite.query_helpers import load_table_definitions
 
 
 def _metadata_payload() -> dict[str, object]:
@@ -176,7 +177,7 @@ def test_manager_refreshes_stale_cached_oauth_metadata(
 ) -> None:
     """Entering the manager should refresh cached metadata when it is stale."""
     db_path = tmp_path / "auth.db"
-    conn = create_read_write_connection(db_path)
+    conn = create_read_write_connection(db_path, init_sql=load_table_definitions())
     try:
         manager_module.query.write_oauth_metadata(
             conn,
@@ -203,7 +204,9 @@ def test_manager_ensure_oauth_metadata_raises_when_fetch_returns_none(
 ) -> None:
     """Manager should fail if metadata still is not available after refresh."""
     manager = SqliteAuthManager(tmp_path / "auth.db")
-    manager._sqlite_connection = create_read_write_connection(tmp_path / "auth.db")
+    manager._sqlite_connection = create_read_write_connection(
+        tmp_path / "auth.db", init_sql=load_table_definitions()
+    )
     manager._session = SimpleNamespace(close=lambda: None)
     monkeypatch.setattr(manager, "_fetch_oauth_metadata", lambda: None)
     monkeypatch.setattr(

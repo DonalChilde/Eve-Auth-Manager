@@ -8,12 +8,25 @@ import sqlite3
 from uuid import UUID
 
 from eve_auth_manager.helpers import json_io
+from eve_auth_manager.helpers.package_resource import load_package_resouce_text
 from eve_auth_manager.models import (
     AuthCredential,
     AuthorizedCharacter,
     OAuthMetadataTimestamped,
     OauthToken,
 )
+
+_table_def_parent = "eve_auth_manager.sqlite"
+_table_def_sql = "table_definitions.sql"
+
+
+def load_table_definitions() -> str:
+    """Load the packaged SQL script for creating the database schema.
+
+    Returns:
+        The contents of the SQL script as a string.
+    """
+    return load_package_resouce_text(_table_def_parent, _table_def_sql)
 
 
 def write_credentials(

@@ -13,6 +13,7 @@ from eve_auth_manager.sqlite.connection_helpers import (
     read_only_uri,
     read_write_uri,
 )
+from eve_auth_manager.sqlite.query_helpers import load_table_definitions
 
 
 def test_sqlite_uri_helpers_build_expected_modes() -> None:
@@ -25,7 +26,9 @@ def test_create_read_write_connection_creates_schema(tmp_path: Path) -> None:
     """Read-write connections should bootstrap the packaged schema."""
     db_path = tmp_path / "auth.db"
 
-    connection = create_read_write_connection(db_path)
+    connection = create_read_write_connection(
+        db_path, init_sql=load_table_definitions()
+    )
     try:
         table_names = {
             row[0]
@@ -85,7 +88,9 @@ def test_create_read_write_connection_accepts_string_path(tmp_path: Path) -> Non
     """Read-write connections should accept string database paths."""
     db_path = tmp_path / "auth.db"
 
-    connection = create_read_write_connection(str(db_path))
+    connection = create_read_write_connection(
+        str(db_path), init_sql=load_table_definitions()
+    )
     try:
         row = connection.execute("SELECT 1").fetchone()
     finally:
@@ -149,7 +154,9 @@ def test_db_connection_manager_propagates_read_write_factory_error(
 ) -> None:
     """Connection manager should propagate read-write factory failures."""
 
-    def fake_create_read_write_connection(db_path: str | Path) -> sqlite3.Connection:
+    def fake_create_read_write_connection(
+        db_path: str | Path, init_sql: str | None = None
+    ) -> sqlite3.Connection:
         raise RuntimeError("boom")
 
     monkeypatch.setattr(
