@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
+from uuid import NAMESPACE_DNS, uuid5
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typer import get_app_dir
@@ -16,6 +17,8 @@ OAUTH_METADATA_URL = (
     "https://login.eveonline.com/.well-known/oauth-authorization-server"
 )
 """URL to fetch OAuth metadata from the ESI auth server."""
+APP_DOMAIN = "pfmsoft.eve-auth-manager"
+APP_NAMESPACE = uuid5(NAMESPACE_DNS, APP_DOMAIN)
 
 
 @dataclass(slots=True, kw_only=True)

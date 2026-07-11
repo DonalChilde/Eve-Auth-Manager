@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 from types import TracebackType
 from typing import Annotated
-from uuid import UUID, uuid4
+from uuid import UUID, uuid5
 
 from annotated_types import Ge, Le
 from httpx2 import Client
@@ -25,7 +25,12 @@ from eve_auth_manager.protocols import (
     CharactersNotFoundError,
     CredentialNotFoundError,
 )
-from eve_auth_manager.settings import AUDIENCE, OAUTH_METADATA_URL, USER_AGENT
+from eve_auth_manager.settings import (
+    APP_NAMESPACE,
+    AUDIENCE,
+    OAUTH_METADATA_URL,
+    USER_AGENT,
+)
 from eve_auth_manager.sqlite import query_helpers as query
 from eve_auth_manager.sqlite.connection_helpers import create_read_write_connection
 
@@ -225,9 +230,10 @@ class SqliteAuthManager(AuthManagerProtocol):
         Returns:
             A dictionary mapping the UUID to the name of the saved credential.
         """
+        cred_id = uuid5(namespace=APP_NAMESPACE, name=str(credential.clientId))
         with self._connection_check() as conn:
             auth_credential = AuthCredential(
-                cred_id=uuid4(),
+                cred_id=cred_id,
                 name=credential.name,
                 description=credential.description,
                 clientId=credential.clientId,

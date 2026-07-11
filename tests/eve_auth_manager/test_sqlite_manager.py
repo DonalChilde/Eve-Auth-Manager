@@ -2,7 +2,7 @@
 
 from pathlib import Path
 from types import SimpleNamespace
-from uuid import UUID
+from uuid import UUID, uuid5
 
 import pytest
 from whenever import Instant
@@ -20,6 +20,7 @@ from eve_auth_manager.protocols import (
     CharactersNotFoundError,
     CredentialNotFoundError,
 )
+from eve_auth_manager.settings import APP_NAMESPACE
 from eve_auth_manager.sqlite.connection_helpers import create_read_write_connection
 from eve_auth_manager.sqlite.manager import SqliteAuthManager
 from eve_auth_manager.sqlite.query_helpers import load_table_definitions
@@ -242,7 +243,6 @@ def test_manager_credential_lifecycle_and_remove_with_revoke(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """Manager should add, fetch, list, and remove credentials."""
-    fixed_uuid = UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 
     class FakeInstant:
         @staticmethod
@@ -250,7 +250,6 @@ def test_manager_credential_lifecycle_and_remove_with_revoke(
             return SimpleNamespace(timestamp=lambda: 1_234)
 
     manager, _events = _enter_manager(tmp_path, monkeypatch)
-    monkeypatch.setattr(manager_module, "uuid4", lambda: fixed_uuid)
     monkeypatch.setattr(manager_module, "Instant", FakeInstant)
     try:
         with pytest.raises(
@@ -259,12 +258,13 @@ def test_manager_credential_lifecycle_and_remove_with_revoke(
             manager.get_credential()
 
         app_credential = _make_app_credential()
+        expected_cred_id = uuid5(APP_NAMESPACE, app_credential.clientId)
         added = manager.add_credential(app_credential)
 
-        assert added == {fixed_uuid: app_credential.name}
-        fetched = manager.get_credential(cred_id=fixed_uuid)
+        assert added == {expected_cred_id: app_credential.name}
+        fetched = manager.get_credential(cred_id=expected_cred_id)
         assert fetched == AuthCredential(
-            cred_id=fixed_uuid,
+            cred_id=expected_cred_id,
             name=app_credential.name,
             description=app_credential.description,
             clientId=app_credential.clientId,
@@ -287,12 +287,12 @@ def test_manager_credential_lifecycle_and_remove_with_revoke(
                 calls.append((cred_id, character_ids)) or {}
             ),
         )
-        assert manager.remove_credential(fixed_uuid) == {
-            fixed_uuid: app_credential.name
+        assert manager.remove_credential(expected_cred_id) == {
+            expected_cred_id: app_credential.name
         }
         assert calls == []
         with pytest.raises(CredentialNotFoundError):
-            manager.remove_credential(fixed_uuid)
+            manager.remove_credential(expected_cred_id)
     finally:
         manager.__exit__(None, None, None)
 
@@ -301,15 +301,14 @@ def test_manager_get_credential_by_name_and_remove_existing_characters(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """Manager should raise for missing credential names and revoke existing characters on remove."""
-    fixed_uuid = UUID("abababab-abab-abab-abab-abababababab")
     manager, _events = _enter_manager(tmp_path, monkeypatch)
-    monkeypatch.setattr(manager_module, "uuid4", lambda: fixed_uuid)
     try:
         app_credential = _make_app_credential("named-app")
+        expected_cred_id = uuid5(APP_NAMESPACE, app_credential.clientId)
         manager.add_credential(app_credential)
         manager.add_character(
-            fixed_uuid,
-            _make_authorized_character(cred_id=fixed_uuid, character_id=77),
+            expected_cred_id,
+            _make_authorized_character(cred_id=expected_cred_id, character_id=77),
         )
 
         with pytest.raises(CredentialNotFoundError):
@@ -324,8 +323,10 @@ def test_manager_get_credential_by_name_and_remove_existing_characters(
             ),
         )
 
-        assert manager.remove_credential(fixed_uuid) == {fixed_uuid: "named-app"}
-        assert calls == [(fixed_uuid, {77})]
+        assert manager.remove_credential(expected_cred_id) == {
+            expected_cred_id: "named-app"
+        }
+        assert calls == [(expected_cred_id, {77})]
     finally:
         manager.__exit__(None, None, None)
 
