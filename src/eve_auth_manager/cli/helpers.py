@@ -5,7 +5,7 @@ from typing import cast
 
 from typer import Context
 
-from eve_auth_manager.settings import EveAuthManagerSettings
+from eve_auth_manager.settings import SETTINGS_KEY, EveAuthManagerSettings
 
 
 def get_auth_manager_settings_from_context(ctx: Context) -> EveAuthManagerSettings:
@@ -16,15 +16,17 @@ def get_auth_manager_settings_from_context(ctx: Context) -> EveAuthManagerSettin
             initialized Eve Auth Manager settings.
 
     Returns:
-        EveAuthManagerSettings stored under the eve-auth-manager-settings key.
+        EveAuthManagerSettings stored under the SETTINGS_KEY key.
 
     Raises:
         ValueError: If the context does not contain initialized Eve Auth
             Manager settings.
     """
-    if ctx.obj is None or "eve-auth-manager-settings" not in ctx.obj:
-        raise ValueError("Auth Manager settings not found in context.")
-    return cast(EveAuthManagerSettings, ctx.obj["eve-auth-manager-settings"])
+    if ctx.obj is None or SETTINGS_KEY not in ctx.obj:
+        raise ValueError(
+            f"Auth Manager settings not found in context under key '{SETTINGS_KEY}'."
+        )
+    return cast(EveAuthManagerSettings, ctx.obj[SETTINGS_KEY])
 
 
 def get_stdin() -> str:

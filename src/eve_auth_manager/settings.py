@@ -19,6 +19,7 @@ OAUTH_METADATA_URL = (
 """URL to fetch OAuth metadata from the ESI auth server."""
 APP_DOMAIN = "pfmsoft.eve-auth-manager"
 APP_NAMESPACE = uuid5(NAMESPACE_DNS, APP_DOMAIN)
+SETTINGS_KEY = "eve-auth-manager-settings"
 
 
 @dataclass(slots=True, kw_only=True)
@@ -45,10 +46,10 @@ class EveAuthManagerSettingsPydantic(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="EVE_AUTH_MANAGER_",
-        env_file=".env",
+        env_file=(".env", ".env.dev"),
         env_file_encoding="utf-8",
     )
-    application_directory: Path = Path(get_app_dir(__app_name__))
+    application_directory: Path = Path(get_app_dir(__app_name__)).resolve()
 
 
 def get_settings(
@@ -66,17 +67,16 @@ def get_settings(
     Notes:
         1. If the CLI is run directly, the settings are initialized in the
            Typer app callback and stored in typer context.obj.
-        2. If the CLI is imported into another CLI, that CLI initializes the
-           EveAuthManagerSettings object either directly or through an
-           EveAuthManagerSettingsPydantic instance, then stores the result in
-           typer context.obj.
+        2. If the CLI is imported into another CLI, that CLI handles creating the
+           EveAuthManagerSettings object then stores the result in
+           typer context.obj under the SETTINGS_KEY key.
         3. If this code is imported into another package, that package is
            responsible for creating the EveAuthManagerSettings object.
     """
     pydantic_settings = pydantic_settings or EveAuthManagerSettingsPydantic()
+    application_directory = pydantic_settings.application_directory.resolve()
     return EveAuthManagerSettings(
-        application_directory=pydantic_settings.application_directory,
-        authorization_database_path=pydantic_settings.application_directory
-        / "eve_auth_manager.sqlite",
-        logging_directory=pydantic_settings.application_directory / "logs",
+        application_directory=application_directory,
+        authorization_database_path=application_directory / "eve_auth_manager.sqlite",
+        logging_directory=application_directory / "logs",
     )
