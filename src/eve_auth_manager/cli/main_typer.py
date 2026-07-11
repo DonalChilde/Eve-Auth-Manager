@@ -16,13 +16,10 @@ from dataclasses import asdict
 import typer
 
 from eve_auth_manager import __app_name__, __version__
-from eve_auth_manager.cli.authorize import app as authorize_app
-from eve_auth_manager.cli.characters import app as characters_app
-from eve_auth_manager.cli.credentials import app as credentials_app
-from eve_auth_manager.cli.util import app as util_app
-from eve_auth_manager.cli.version import app as version_app
 from eve_auth_manager.logging_config import setup_logging
 from eve_auth_manager.settings import get_settings
+
+from . import app as auth_manager_app
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +48,5 @@ app = typer.Typer(
     callback=default_options,
     help="Manage ESI authentication credentials and tokens.",
 )
-app.add_typer(authorize_app)
-app.add_typer(credentials_app)
-app.add_typer(characters_app)
-app.add_typer(util_app)
-app.add_typer(version_app)
+
+app.add_typer(auth_manager_app, help="EVE Auth Manager CLI")
