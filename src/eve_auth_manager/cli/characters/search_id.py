@@ -21,7 +21,7 @@ def search(
     search_strings: Annotated[
         list[str],
         typer.Option(
-            "--search",
+            "--name",
             help="Exact entity name to search. Repeat for multiple names.",
         ),
     ],
