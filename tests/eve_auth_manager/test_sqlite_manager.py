@@ -1,5 +1,6 @@
 """Tests for the SQLite-backed auth manager."""
 
+# pyright: standard
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import UUID, uuid5
