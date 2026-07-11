@@ -187,7 +187,7 @@ def authorize(
             "Either --cred-id or --cred-name must be provided.", param_hint="cred-id"
         )
     settings = get_auth_manager_settings_from_context(ctx)
-    with SqliteAuthManager(settings.auth_db_path) as auth_manager:
+    with SqliteAuthManager(settings.authorization_database_path) as auth_manager:
         credential = auth_manager.get_credential(
             cred_id=arguments["cred_id"], cred_name=arguments["cred_name"]
         )

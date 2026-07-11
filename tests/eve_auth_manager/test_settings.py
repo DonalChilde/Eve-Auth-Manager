@@ -6,13 +6,13 @@ import eve_auth_manager.settings as settings_module
 from eve_auth_manager.settings import EveAuthManagerSettings
 
 
-def test_pydantic_settings_logging_directory_uses_database_parent() -> None:
-    """Logging directory should live beside the configured auth database."""
+def test_pydantic_settings_uses_provided_application_directory() -> None:
+    """Pydantic settings should preserve an explicitly provided app directory."""
     settings = settings_module.EveAuthManagerSettingsPydantic(
-        auth_db_path=Path("/tmp/eve-auth/auth.db")
+        application_directory=Path("/tmp/eve-auth")
     )
 
-    assert settings.logging_directory == Path("/tmp/eve-auth/logs")
+    assert settings.application_directory == Path("/tmp/eve-auth")
 
 
 def test_get_settings_builds_normalized_settings_from_default_pydantic(
@@ -22,8 +22,7 @@ def test_get_settings_builds_normalized_settings_from_default_pydantic(
 
     class FakePydanticSettings:
         def __init__(self) -> None:
-            self.auth_db_path = Path("/tmp/eve-auth/auth.db")
-            self.logging_directory = Path("/tmp/eve-auth/logs")
+            self.application_directory = Path("/tmp/eve-auth")
 
     monkeypatch.setattr(
         settings_module,
@@ -34,6 +33,7 @@ def test_get_settings_builds_normalized_settings_from_default_pydantic(
     result = settings_module.get_settings()
 
     assert result == EveAuthManagerSettings(
-        auth_db_path=Path("/tmp/eve-auth/auth.db"),
+        application_directory=Path("/tmp/eve-auth"),
+        authorization_database_path=Path("/tmp/eve-auth/eve_auth_manager.sqlite"),
         logging_directory=Path("/tmp/eve-auth/logs"),
     )

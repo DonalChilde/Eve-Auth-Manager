@@ -62,14 +62,12 @@ def display_credentials_summary(
     )
     for details in credential_details:
         credentials = details.auth_credentials
-        table.add_row(
-            [
-                credentials.cred_id,
-                credentials.name,
-                credentials.description,
-                details.authorized_character_count,
-            ]
-        )
+        table.add_row([
+            credentials.cred_id,
+            credentials.name,
+            credentials.description,
+            details.authorized_character_count,
+        ])
 
     report_string = "\n".join(["# Credentials Summary", "", table.render()])
     return mdformat_text(report_string, extensions=["tables"])
@@ -147,7 +145,9 @@ def display(
     else:
         messenger = Console(stderr=True)
     settings = get_auth_manager_settings_from_context(ctx)
-    credentials = _get_credentials_details(settings.auth_db_path, cred_id, cred_name)
+    credentials = _get_credentials_details(
+        settings.authorization_database_path, cred_id, cred_name
+    )
     if isinstance(credentials, list):
         if not credentials:
             messenger.print("[yellow]No credentials found in the database.[/yellow]")

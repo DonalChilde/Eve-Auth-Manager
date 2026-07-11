@@ -77,7 +77,7 @@ def add_credentials(
         messenger.print(f"Loading credentials from {credentials_file}...")
         creds_text = credentials_file.read_text()
     credentials = EsiAppCredentialRoot.model_validate_json(creds_text).root
-    with SqliteAuthManager(settings.auth_db_path) as auth_manager:
+    with SqliteAuthManager(settings.authorization_database_path) as auth_manager:
         added_creds = auth_manager.add_credential(credentials)
     # get the UUID of the added credentials and print it
     cred_id = next(iter(added_creds))

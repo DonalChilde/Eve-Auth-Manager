@@ -16,7 +16,8 @@ from eve_auth_manager.settings import EveAuthManagerSettings
 def test_get_auth_manager_settings_from_context_returns_stored_settings() -> None:
     """Context helper should return the stored settings object unchanged."""
     settings = EveAuthManagerSettings(
-        auth_db_path=Path("/tmp/auth.db"),
+        application_directory=Path("/tmp"),
+        authorization_database_path=Path("/tmp/auth.db"),
         logging_directory=Path("/tmp/logs"),
     )
     ctx = SimpleNamespace(obj={"eve-auth-manager-settings": settings})

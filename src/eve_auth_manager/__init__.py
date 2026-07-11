@@ -2,7 +2,7 @@
 
 __author__ = "Chad Lowe"
 __email__ = "pfmsoft.dev@gmail.com"
-__app_name__ = "esi-auth-manager"
+__app_name__ = "eve-auth-manager"
 """Name of this module is defined here for consitency, used in determining the app_dir 
 and other paths."""
 #######################################################################################

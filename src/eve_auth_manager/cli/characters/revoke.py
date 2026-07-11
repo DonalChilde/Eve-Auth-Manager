@@ -69,7 +69,7 @@ def revoke(
     else:
         messenger = Console(stderr=True)
     settings = get_auth_manager_settings_from_context(ctx)
-    with SqliteAuthManager(settings.auth_db_path) as auth_manager:
+    with SqliteAuthManager(settings.authorization_database_path) as auth_manager:
         # if both cred_id and cred_name are provided, cred_id takes precedence
         if cred_id is not None:
             credentials = auth_manager.get_credential(cred_id=cred_id)

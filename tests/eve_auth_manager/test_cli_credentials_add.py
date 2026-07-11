@@ -16,7 +16,8 @@ from eve_auth_manager.settings import EveAuthManagerSettings
 def _make_context(tmp_path: Path) -> SimpleNamespace:
     """Build a minimal context object with configured settings."""
     settings = EveAuthManagerSettings(
-        auth_db_path=tmp_path / "auth.db",
+        application_directory=tmp_path,
+        authorization_database_path=tmp_path / "auth.db",
         logging_directory=tmp_path / "logs",
     )
     return SimpleNamespace(obj={"eve-auth-manager-settings": settings})
@@ -46,16 +47,14 @@ def test_add_credentials_reads_json_from_stdin(
     monkeypatch.setattr(
         add_module,
         "get_stdin",
-        lambda: json.dumps(
-            {
-                "name": "Main App",
-                "description": "Primary credential",
-                "clientId": "client-id",
-                "clientSecret": "secret",
-                "callbackUrl": "http://localhost/callback",
-                "scopes": ["esi-characters.read_contacts.v1"],
-            }
-        ),
+        lambda: json.dumps({
+            "name": "Main App",
+            "description": "Primary credential",
+            "clientId": "client-id",
+            "clientSecret": "secret",
+            "callbackUrl": "http://localhost/callback",
+            "scopes": ["esi-characters.read_contacts.v1"],
+        }),
     )
 
     add_credentials(ctx, quiet=True)  # type: ignore[arg-type]
@@ -78,16 +77,14 @@ def test_add_credentials_reads_json_from_file(
     ctx = _make_context(tmp_path)
     creds_path = tmp_path / "credentials.json"
     creds_path.write_text(
-        json.dumps(
-            {
-                "name": "Backup App",
-                "description": "Secondary credential",
-                "clientId": "backup-id",
-                "clientSecret": "backup-secret",
-                "callbackUrl": "http://localhost/backup",
-                "scopes": [],
-            }
-        ),
+        json.dumps({
+            "name": "Backup App",
+            "description": "Secondary credential",
+            "clientId": "backup-id",
+            "clientSecret": "backup-secret",
+            "callbackUrl": "http://localhost/backup",
+            "scopes": [],
+        }),
         encoding="utf-8",
     )
     calls: dict[str, object] = {}
@@ -125,16 +122,14 @@ def test_add_credentials_reports_file_load_and_success_when_not_quiet(
     ctx = _make_context(tmp_path)
     creds_path = tmp_path / "credentials.json"
     creds_path.write_text(
-        json.dumps(
-            {
-                "name": "Backup App",
-                "description": "Secondary credential",
-                "clientId": "backup-id",
-                "clientSecret": "backup-secret",
-                "callbackUrl": "http://localhost/backup",
-                "scopes": [],
-            }
-        ),
+        json.dumps({
+            "name": "Backup App",
+            "description": "Secondary credential",
+            "clientId": "backup-id",
+            "clientSecret": "backup-secret",
+            "callbackUrl": "http://localhost/backup",
+            "scopes": [],
+        }),
         encoding="utf-8",
     )
     added_id = UUID("33333333-3333-3333-3333-333333333333")

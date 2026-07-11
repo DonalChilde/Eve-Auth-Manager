@@ -17,8 +17,6 @@ OAUTH_METADATA_URL = (
 )
 """URL to fetch OAuth metadata from the ESI auth server."""
 
-# TODO: add enough fields for an actual appdir settup.
-
 
 @dataclass(slots=True, kw_only=True)
 class EveAuthManagerSettings:
@@ -29,7 +27,8 @@ class EveAuthManagerSettings:
     directly.
     """
 
-    auth_db_path: Path
+    application_directory: Path
+    authorization_database_path: Path
     logging_directory: Path
 
 
@@ -37,17 +36,16 @@ class EveAuthManagerSettingsPydantic(BaseSettings):
     """Environment-backed settings loader for Eve Auth Manager.
 
     Loads configuration from environment variables prefixed with
-    ESI_AUTH_MANAGER_ and supplies default filesystem locations when values
+    EVE_AUTH_MANAGER_ and supplies default filesystem locations when values
     are not provided.
     """
 
-    model_config = SettingsConfigDict(env_prefix="ESI_AUTH_MANAGER_")
-    auth_db_path: Path = Path(get_app_dir(__app_name__)) / "auth_manager.db"
-
-    @property
-    def logging_directory(self) -> Path:
-        """Return the directory used for application log files."""
-        return self.auth_db_path.parent / "logs"
+    model_config = SettingsConfigDict(
+        env_prefix="EVE_AUTH_MANAGER_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+    )
+    application_directory: Path = Path(get_app_dir(__app_name__))
 
 
 def get_settings(
@@ -74,6 +72,8 @@ def get_settings(
     """
     pydantic_settings = pydantic_settings or EveAuthManagerSettingsPydantic()
     return EveAuthManagerSettings(
-        auth_db_path=pydantic_settings.auth_db_path,
-        logging_directory=pydantic_settings.logging_directory,
+        application_directory=pydantic_settings.application_directory,
+        authorization_database_path=pydantic_settings.application_directory
+        / "eve_auth_manager.sqlite",
+        logging_directory=pydantic_settings.application_directory / "logs",
     )

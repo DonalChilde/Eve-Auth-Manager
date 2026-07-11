@@ -17,7 +17,8 @@ from eve_auth_manager.settings import EveAuthManagerSettings
 def _make_context(tmp_path: Path) -> SimpleNamespace:
     """Build a minimal Typer context replacement with configured settings."""
     settings = EveAuthManagerSettings(
-        auth_db_path=tmp_path / "auth.db",
+        application_directory=tmp_path,
+        authorization_database_path=tmp_path / "auth.db",
         logging_directory=tmp_path / "logs",
     )
     return SimpleNamespace(obj={"eve-auth-manager-settings": settings})

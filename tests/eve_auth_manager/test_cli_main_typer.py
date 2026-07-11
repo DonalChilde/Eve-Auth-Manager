@@ -15,7 +15,8 @@ def test_default_options_initializes_context_and_logging(
 ) -> None:
     """Default callback should store settings and initialize logging."""
     settings = EveAuthManagerSettings(
-        auth_db_path=tmp_path / "auth.db",
+        application_directory=tmp_path,
+        authorization_database_path=tmp_path / "auth.db",
         logging_directory=tmp_path / "logs",
     )
     ctx = SimpleNamespace(obj=None)
@@ -46,7 +47,8 @@ def test_main_app_help_lists_top_level_command_groups(
 ) -> None:
     """Top-level help should expose the standalone command groups."""
     settings = EveAuthManagerSettings(
-        auth_db_path=tmp_path / "auth.db",
+        application_directory=tmp_path,
+        authorization_database_path=tmp_path / "auth.db",
         logging_directory=tmp_path / "logs",
     )
     runner = CliRunner()

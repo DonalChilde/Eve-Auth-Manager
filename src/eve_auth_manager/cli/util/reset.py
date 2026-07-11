@@ -56,7 +56,7 @@ def reset_database(
     else:
         messenger = Console(stderr=True)
     settings = get_auth_manager_settings_from_context(ctx)
-    db_path = settings.auth_db_path
+    db_path = settings.authorization_database_path
     if force:
         messenger.print(f"Erasing auth database at {db_path}...")
         db_path.unlink(missing_ok=True)

@@ -43,14 +43,12 @@ def display_characters_summary(
         headers=["character_id", "character_name", "cred_id", "expires_in"],
     )
     for character in characters:
-        table.add_row(
-            [
-                character.character_id,
-                character.character_name,
-                character.cred_id,
-                character.expires_in,
-            ]
-        )
+        table.add_row([
+            character.character_id,
+            character.character_name,
+            character.cred_id,
+            character.expires_in,
+        ])
 
     report_string = "\n".join(["# Characters Summary", "", table.render()])
     return mdformat_text(report_string, extensions=["tables"])
@@ -133,7 +131,7 @@ def display(
     else:
         messenger = Console(stderr=True)
     settings = get_auth_manager_settings_from_context(ctx)
-    with SqliteAuthManager(settings.auth_db_path) as auth_manager:
+    with SqliteAuthManager(settings.authorization_database_path) as auth_manager:
         if cred_id is not None:
             credentials = auth_manager.get_credential(cred_id=cred_id)
         elif cred_name is not None:
