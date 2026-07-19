@@ -1,0 +1,255 @@
+"""SQLite persistence helpers for Eve Auth Manager models.
+
+This module contains SQL-backed helpers for storing and retrieving
+credentials, authorized characters, and cached OAuth metadata.
+"""
+
+import sqlite3
+from uuid import UUID
+
+from pfmsoft.eve_auth_manager.helpers import json_io
+from pfmsoft.eve_auth_manager.helpers.package_resource import load_package_resouce_text
+from pfmsoft.eve_auth_manager.models import (
+    AuthCredential,
+    AuthorizedCharacter,
+    OAuthMetadataTimestamped,
+    OauthToken,
+)
+
+_table_def_parent = "pfmsoft.eve_auth_manager.sqlite"
+_table_def_sql = "table_definitions.sql"
+
+
+def load_table_definitions() -> str:
+    """Load the packaged SQL script for creating the database schema.
+
+    Returns:
+        The contents of the SQL script as a string.
+    """
+    return load_package_resouce_text(_table_def_parent, _table_def_sql)
+
+
+def write_credentials(
+    connection: sqlite3.Connection, *, credentials: AuthCredential
+) -> None:
+    """Insert a credential record into the database.
+
+    Args:
+        connection: Open SQLite connection.
+        credentials: Credential model to persist.
+    """
+    with connection:
+        connection.execute(
+            """
+            INSERT INTO credentials (
+                cred_id,
+                name,
+                description,
+                client_id,
+                client_secret,
+                callback_url,
+                scopes,
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                str(credentials.cred_id),
+                credentials.name,
+                credentials.description,
+                credentials.clientId,
+                credentials.clientSecret,
+                credentials.callbackUrl,
+                json_io.json_dumps(credentials.scopes),
+                credentials.created_at,
+            ),
+        )
+
+
+def query_credential(
+    connection: sqlite3.Connection, *, cred_id: UUID
+) -> AuthCredential | None:
+    """Return the credential for the given ID, or None if no row exists."""
+    cursor = connection.execute(
+        "SELECT * FROM credentials WHERE cred_id = ?", (str(cred_id),)
+    )
+    row = cursor.fetchone()
+    if row is None:
+        return None
+    return AuthCredential(
+        cred_id=UUID(row["cred_id"]),
+        name=row["name"],
+        description=row["description"],
+        clientId=row["client_id"],
+        clientSecret=row["client_secret"],
+        callbackUrl=row["callback_url"],
+        scopes=json_io.json_loads(row["scopes"]),
+        created_at=row["created_at"],
+    )
+
+
+def query_credential_by_name(
+    connection: sqlite3.Connection, *, cred_name: str
+) -> AuthCredential | None:
+    """Return the credential for the given name, or None if no row exists."""
+    cursor = connection.execute(
+        "SELECT * FROM credentials WHERE name = ?", (cred_name,)
+    )
+    row = cursor.fetchone()
+    if row is None:
+        return None
+    return AuthCredential(
+        cred_id=UUID(row["cred_id"]),
+        name=row["name"],
+        description=row["description"],
+        clientId=row["client_id"],
+        clientSecret=row["client_secret"],
+        callbackUrl=row["callback_url"],
+        scopes=json_io.json_loads(row["scopes"]),
+        created_at=row["created_at"],
+    )
+
+
+def query_credentials(connection: sqlite3.Connection) -> list[AuthCredential]:
+    """Return all credential records stored in the database."""
+    cursor = connection.execute("SELECT * FROM credentials")
+    rows = cursor.fetchall()
+    return [
+        AuthCredential(
+            cred_id=UUID(row["cred_id"]),
+            name=row["name"],
+            description=row["description"],
+            clientId=row["client_id"],
+            clientSecret=row["client_secret"],
+            callbackUrl=row["callback_url"],
+            scopes=json_io.json_loads(row["scopes"]),
+            created_at=row["created_at"],
+        )
+        for row in rows
+    ]
+
+
+def delete_credentials(connection: sqlite3.Connection, *, cred_id: UUID) -> None:
+    """Delete the credential row for the given ID if it exists."""
+    with connection:
+        connection.execute("DELETE FROM credentials WHERE cred_id = ?", (str(cred_id),))
+
+
+def write_authorized_character(
+    connection: sqlite3.Connection, *, character: AuthorizedCharacter
+) -> None:
+    """Insert or update an authorized character record.
+
+    If a row with the same credential ID and character ID already exists,
+    the stored character name, expiration, and OAuth token are replaced.
+
+    Args:
+        connection: Open SQLite connection.
+        character: Authorized character model to persist.
+    """
+    with connection:
+        connection.execute(
+            """
+            INSERT INTO authorized_characters (
+                character_id,
+                cred_id,
+                character_name,
+                expires_at,
+                oauth_token
+            ) VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT (cred_id, character_id) DO UPDATE SET
+            character_name = excluded.character_name,
+            expires_at = excluded.expires_at,
+            oauth_token = excluded.oauth_token;
+            """,
+            (
+                character.character_id,
+                str(character.cred_id),
+                character.character_name,
+                character.expires_at,
+                json_io.json_dumps(character.oauth_token.token_data),
+            ),
+        )
+
+
+def query_authorized_character(
+    connection: sqlite3.Connection, *, cred_id: UUID, character_id: int
+) -> AuthorizedCharacter | None:
+    """Return an authorized character, or None if no matching row exists."""
+    cursor = connection.execute(
+        "SELECT * FROM authorized_characters WHERE cred_id = ? AND character_id = ?",
+        (str(cred_id), character_id),
+    )
+    row = cursor.fetchone()
+    if row is None:
+        return None
+    return AuthorizedCharacter(
+        character_id=row["character_id"],
+        cred_id=UUID(row["cred_id"]),
+        character_name=row["character_name"],
+        expires_at=row["expires_at"],
+        oauth_token=OauthToken(token_data=json_io.json_loads(row["oauth_token"])),
+    )
+
+
+def query_authorized_characters(
+    connection: sqlite3.Connection, *, cred_id: UUID
+) -> list[AuthorizedCharacter]:
+    """Return all authorized characters linked to the given credential ID."""
+    cursor = connection.execute(
+        "SELECT * FROM authorized_characters WHERE cred_id = ?", (str(cred_id),)
+    )
+    rows = cursor.fetchall()
+    return [
+        AuthorizedCharacter(
+            character_id=row["character_id"],
+            cred_id=UUID(row["cred_id"]),
+            character_name=row["character_name"],
+            expires_at=row["expires_at"],
+            oauth_token=OauthToken(token_data=json_io.json_loads(row["oauth_token"])),
+        )
+        for row in rows
+    ]
+
+
+def delete_authorized_character(
+    connection: sqlite3.Connection, *, cred_id: UUID, character_id: int
+) -> None:
+    """Delete the authorized character row if it exists."""
+    with connection:
+        connection.execute(
+            "DELETE FROM authorized_characters WHERE cred_id = ? AND character_id = ?",
+            (str(cred_id), character_id),
+        )
+
+
+def write_oauth_metadata(
+    connection: sqlite3.Connection, *, oauth_metadata: OAuthMetadataTimestamped
+) -> None:
+    """Store the cached OAuth metadata singleton row.
+
+    The oauth_metadata table is treated as a single-record cache keyed by
+    row_id = 1.
+
+    Args:
+        connection: Open SQLite connection.
+        oauth_metadata: Cached metadata and its timestamp to persist.
+    """
+    with connection:
+        connection.execute(
+            "INSERT OR REPLACE INTO oauth_metadata (row_id, created_at, oauth_metadata) VALUES (1, ?, ?)",
+            (oauth_metadata.timestamp, json_io.json_dumps(oauth_metadata.metadata)),
+        )
+
+
+def query_oauth_metadata(
+    connection: sqlite3.Connection,
+) -> OAuthMetadataTimestamped | None:
+    """Return the cached OAuth metadata singleton row, or None if missing."""
+    cursor = connection.execute("SELECT * FROM oauth_metadata WHERE row_id = 1")
+    row = cursor.fetchone()
+    if row is None:
+        return None
+    return OAuthMetadataTimestamped(
+        timestamp=row["created_at"],
+        metadata=json_io.json_loads(row["oauth_metadata"]),
+    )

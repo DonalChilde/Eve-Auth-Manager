@@ -26,11 +26,15 @@ license-files = ["LICENSE"]
 requires = ["uv_build>=0.11.21,<0.12.0"]
 build-backend = "uv_build"
 
+# For a namespaced project
+[tool.uv.build-backend]
+module-name = "pfmsoft.eve_auth_manager"
+
 [project.urls]
-Documentation = "https://github.com/DonalChilde/Eve-Auth-Manager#readme"
+Documentation = "https://github.com/DonalChilde/pfmsoft-eve-auth-manager#readme"
 # Documentation_rtd = "https://esi-link.readthedocs.io"
-Issues = "https://github.com/DonalChilde/Eve-Auth-Manager/issues"
-Source = "https://github.com/DonalChilde/Eve-Auth-Manager"
+Issues = "https://github.com/DonalChilde/pfmsoft-eve-auth-manager/issues"
+Source = "https://github.com/DonalChilde/pfmsoft-eve-auth-manager"
 
 [tool.uv]
 exclude-newer = "1 week"
@@ -45,7 +49,7 @@ dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0", "ruff>=0.15.20"]
 # script entry-points
 # COMMAND_NAME = "PATH.TO.ENTRY.MODULE:ENTRY_FUNCTION"
 
-eve-auth = "eve_auth_manager.cli.main_typer:app"
+eve-auth = "pfmsoft.eve_auth_manager.cli.main_typer:app"
 
 [tool.pytest.ini_options]
 pythonpath = "src"
