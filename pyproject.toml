@@ -11,11 +11,11 @@ dependencies = [
     "pfmsoft-eve-snippets>=0.1.4",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.2",
-    "pyjwt[crypto]>=2.13.0",
+    "pyjwt>=2.13.0",
     "pyyaml>=6.0.3",
     "rich>=15.0.0",
     "typer>=0.26.8",
-    "whenever>=0.10.0",
+    "whenever>=0.10.2",
 ]
 # https://packaging.python.org/en/latest/specifications/license-expression/#specification
 license = "MIT"
@@ -43,7 +43,11 @@ exclude-newer = "1 week"
 pfmsoft-eve-snippets = false
 
 [dependency-groups]
-dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0", "ruff>=0.15.20"]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.15.21",
+]
 
 [project.scripts]
 # script entry-points
