@@ -11,7 +11,7 @@ jobs:
 
     environment:
       name: pypi
-      url: https://pypi.org/project/pfmsoft-eve-sd/
+      url: https://pypi.org/project/pfmsoft-eve-auth-manager/
 
     permissions:
       id-token: write # Required for PyPI Trusted Publishing
