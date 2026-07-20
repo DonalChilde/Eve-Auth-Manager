@@ -6,9 +6,10 @@ from typing import Annotated
 
 import typer
 from pfmsoft.eve_snippets import save_text_file
+from pfmsoft.eve_snippets.httpx2.http_session_factory import client_manager
 from rich.console import Console
 
-from pfmsoft.eve_auth_manager.helpers.http_session_factory import client_manager
+from pfmsoft.eve_auth_manager.settings import USER_AGENT
 
 app = typer.Typer(no_args_is_help=True, help="Search EVE Online entity IDs by name.")
 
@@ -91,7 +92,7 @@ def search(
         isinstance(s, str) for s in search_strings
     ), "search_strings must be a list of strings"
     messenger.print(f"Searching for the following names: {', '.join(search_strings)}")
-    with client_manager() as session:
+    with client_manager(user_agent=USER_AGENT) as session:
         # Send a POST request to the ESI search endpoint with the search strings as JSON
         response = session.post(url=SEARCH_ENDPOINT, json=search_strings)
         response.raise_for_status()

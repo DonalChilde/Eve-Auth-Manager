@@ -37,7 +37,11 @@ def test_search_plain_stdout_writes_json(
         def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
             return None
 
-    monkeypatch.setattr(search_module, "client_manager", lambda: FakeClientManager())
+    monkeypatch.setattr(
+        search_module,
+        "client_manager",
+        lambda **kwargs: FakeClientManager(),
+    )
 
     search(["Tritanium"], plain=True, quiet=True)  # type: ignore[arg-type]
 
@@ -72,7 +76,11 @@ def test_search_writes_results_to_file(
         def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
             return None
 
-    monkeypatch.setattr(search_module, "client_manager", lambda: FakeClientManager())
+    monkeypatch.setattr(
+        search_module,
+        "client_manager",
+        lambda **kwargs: FakeClientManager(),
+    )
 
     search(["Jane Capsuleer"], file_path=output_path, quiet=True)  # type: ignore[arg-type]
 
@@ -104,7 +112,11 @@ def test_search_exits_cleanly_when_no_results(
         def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
             return None
 
-    monkeypatch.setattr(search_module, "client_manager", lambda: FakeClientManager())
+    monkeypatch.setattr(
+        search_module,
+        "client_manager",
+        lambda **kwargs: FakeClientManager(),
+    )
 
     with pytest.raises(typer.Exit) as exc_info:
         search(["Missing Name"], quiet=True)  # type: ignore[arg-type]
@@ -147,7 +159,11 @@ def test_search_rich_stdout_prints_results_and_status_message(
         def print(self, message: object) -> None:
             printed.append(message)
 
-    monkeypatch.setattr(search_module, "client_manager", lambda: FakeClientManager())
+    monkeypatch.setattr(
+        search_module,
+        "client_manager",
+        lambda **kwargs: FakeClientManager(),
+    )
     monkeypatch.setattr(search_module, "Console", FakeConsole)
 
     search(["Jane Capsuleer"], plain=False, quiet=False)  # type: ignore[arg-type]
@@ -201,7 +217,11 @@ def test_search_writes_results_to_file_reports_output_path(
         output_path.write_text(f"{kwargs['text']}\n", encoding="utf-8")
         return output_path
 
-    monkeypatch.setattr(search_module, "client_manager", lambda: FakeClientManager())
+    monkeypatch.setattr(
+        search_module,
+        "client_manager",
+        lambda **kwargs: FakeClientManager(),
+    )
     monkeypatch.setattr(search_module, "Console", FakeConsole)
     monkeypatch.setattr(search_module, "save_text_file", fake_save_text_file)
 
