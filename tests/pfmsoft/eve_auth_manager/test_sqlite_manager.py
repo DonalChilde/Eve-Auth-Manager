@@ -6,6 +6,9 @@ from types import SimpleNamespace
 from uuid import UUID, uuid5
 
 import pytest
+from pfmsoft.eve_snippets.sqlite3.connection_helpers import (
+    create_read_write_connection,
+)
 from whenever import Instant
 
 import pfmsoft.eve_auth_manager.sqlite.manager as manager_module
@@ -22,9 +25,6 @@ from pfmsoft.eve_auth_manager.protocols import (
     CredentialNotFoundError,
 )
 from pfmsoft.eve_auth_manager.settings import APP_NAMESPACE
-from pfmsoft.eve_auth_manager.sqlite.connection_helpers import (
-    create_read_write_connection,
-)
 from pfmsoft.eve_auth_manager.sqlite.manager import SqliteAuthManager
 from pfmsoft.eve_auth_manager.sqlite.query_helpers import load_table_definitions
 

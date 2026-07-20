@@ -10,6 +10,9 @@ from annotated_types import Ge, Le
 from httpx2 import Client
 from jwt.jwks_client import PyJWKClient
 from pfmsoft.eve_snippets.httpx2.http_session_factory import config_http_client
+from pfmsoft.eve_snippets.sqlite3.connection_helpers import (
+    create_read_write_connection,
+)
 from whenever import Instant
 
 from pfmsoft.eve_auth_manager.auth import token_tools
@@ -32,9 +35,6 @@ from pfmsoft.eve_auth_manager.settings import (
     USER_AGENT,
 )
 from pfmsoft.eve_auth_manager.sqlite import query_helpers as query
-from pfmsoft.eve_auth_manager.sqlite.connection_helpers import (
-    create_read_write_connection,
-)
 
 
 class SqliteAuthManager(AuthManagerProtocol):

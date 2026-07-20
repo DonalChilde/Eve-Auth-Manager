@@ -4,14 +4,15 @@ import sqlite3
 from pathlib import Path
 from uuid import UUID
 
+from pfmsoft.eve_snippets.sqlite3.connection_helpers import (
+    create_read_write_connection,
+)
+
 from pfmsoft.eve_auth_manager.models import (
     AuthCredential,
     AuthorizedCharacter,
     OAuthMetadataTimestamped,
     OauthToken,
-)
-from pfmsoft.eve_auth_manager.sqlite.connection_helpers import (
-    create_read_write_connection,
 )
 from pfmsoft.eve_auth_manager.sqlite.query_helpers import (
     delete_authorized_character,
