@@ -9,12 +9,12 @@ from uuid import UUID
 import typer
 from mdformat import text as mdformat_text  # type: ignore
 from pfmsoft.eve_snippets import save_text_file
+from pfmsoft.eve_snippets.markdown.markdown_table import MarkdownTable
 from rich.console import Console
 from rich.markdown import Markdown
 from whenever import Instant
 
 from pfmsoft.eve_auth_manager.cli.helpers import get_auth_manager_settings_from_context
-from pfmsoft.eve_auth_manager.helpers.markdown_table import MarkdownTable
 from pfmsoft.eve_auth_manager.models import AuthCredential
 from pfmsoft.eve_auth_manager.sqlite.manager import SqliteAuthManager
 
