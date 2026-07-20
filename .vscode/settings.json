@@ -9,7 +9,7 @@
   "python.testing.cwd": "${workspaceFolder}",
   "python.testing.pytestArgs": [
     "tests/pfmsoft/eve_auth_manager",
-    "--cov=src/eve_auth_manager",
+    "--cov=src/pfmsoft/eve_auth_manager",
     "--cov-report=term-missing",
     "--cov-report=xml:coverage.xml"
   ],
