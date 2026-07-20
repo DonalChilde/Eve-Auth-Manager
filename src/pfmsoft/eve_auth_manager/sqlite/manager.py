@@ -9,10 +9,10 @@ from uuid import UUID, uuid5
 from annotated_types import Ge, Le
 from httpx2 import Client
 from jwt.jwks_client import PyJWKClient
+from pfmsoft.eve_snippets.httpx2.http_session_factory import config_http_client
 from whenever import Instant
 
 from pfmsoft.eve_auth_manager.auth import token_tools
-from pfmsoft.eve_auth_manager.helpers.http_session_factory import config_http_client
 from pfmsoft.eve_auth_manager.models import (
     AuthCredential,
     AuthorizedCharacter,
