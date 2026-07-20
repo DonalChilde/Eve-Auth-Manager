@@ -7,7 +7,8 @@ credentials, authorized characters, and cached OAuth metadata.
 import sqlite3
 from uuid import UUID
 
-from pfmsoft.eve_auth_manager.helpers import json_io
+from pfmsoft.eve_snippets import json_io
+
 from pfmsoft.eve_auth_manager.helpers.package_resource import load_package_resouce_text
 from pfmsoft.eve_auth_manager.models import (
     AuthCredential,
