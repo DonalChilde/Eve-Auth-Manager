@@ -213,7 +213,7 @@ wheels = [
 
 [[package]]
 name = "pfmsoft-eve-auth-manager"
-version = "0.4.3"
+version = "0.4.4"
 source = { editable = "." }
 dependencies = [
     { name = "httpx2" },
@@ -241,7 +241,7 @@ requires-dist = [
     { name = "httpx2", specifier = ">=2.5.0" },
     { name = "mdformat", specifier = ">=1.0.0" },
     { name = "mdformat-gfm", specifier = ">=1.0.0" },
-    { name = "pfmsoft-eve-snippets", specifier = ">=0.1.4" },
+    { name = "pfmsoft-eve-snippets", specifier = ">=0.1.7" },
     { name = "pydantic", specifier = ">=2.13.4" },
     { name = "pydantic-settings", specifier = ">=2.14.2" },
     { name = "pyjwt", specifier = ">=2.13.0" },
