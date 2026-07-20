@@ -5,10 +5,10 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from pfmsoft.eve_snippets import save_text_file
 from rich.console import Console
 
 from pfmsoft.eve_auth_manager.helpers.http_session_factory import client_manager
-from pfmsoft.eve_auth_manager.helpers.save_text_file import save_text_file
 
 app = typer.Typer(no_args_is_help=True, help="Search EVE Online entity IDs by name.")
 
@@ -107,8 +107,8 @@ def search(
         else:
             output_path = save_text_file(
                 text=json.dumps(search_results, indent=indent),
-                output_directory=file_path.parent,
-                file_name=file_path.name,
+                directory=file_path.parent,
+                filename=file_path.name,
                 overwrite=overwrite,
             )
             messenger.print(f"Output written to {output_path}")

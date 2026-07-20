@@ -261,7 +261,9 @@ def test_display_writes_summary_markdown_to_file(
         quiet=True,
     )
 
-    assert output_path.read_text(encoding="utf-8") == "# Characters Summary\n\ncontent"
+    assert (
+        output_path.read_text(encoding="utf-8") == "# Characters Summary\n\ncontent\n"
+    )
 
 
 def test_display_prints_rich_markdown_to_stdout(

@@ -198,7 +198,7 @@ def test_search_writes_results_to_file_reports_output_path(
 
     def fake_save_text_file(**kwargs: object) -> Path:
         save_calls.update(kwargs)
-        output_path.write_text(kwargs["text"], encoding="utf-8")
+        output_path.write_text(f"{kwargs['text']}\n", encoding="utf-8")
         return output_path
 
     monkeypatch.setattr(search_module, "client_manager", lambda: FakeClientManager())
@@ -215,8 +215,8 @@ def test_search_writes_results_to_file_reports_output_path(
 
     assert save_calls == {
         "text": json.dumps(expected, indent=2),
-        "output_directory": tmp_path,
-        "file_name": "search-results.json",
+        "directory": tmp_path,
+        "filename": "search-results.json",
         "overwrite": True,
     }
     assert printed == [

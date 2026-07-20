@@ -8,7 +8,7 @@ dependencies = [
     "httpx2>=2.5.0",
     "mdformat>=1.0.0",
     "mdformat-gfm>=1.0.0",
-    "pfmsoft-eve-snippets>=0.1.4",
+    "pfmsoft-eve-snippets>=0.1.7",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.2",
     "pyjwt>=2.13.0",
@@ -43,11 +43,7 @@ exclude-newer = "1 week"
 pfmsoft-eve-snippets = false
 
 [dependency-groups]
-dev = [
-    "pytest>=9.1.1",
-    "pytest-cov>=7.1.0",
-    "ruff>=0.15.21",
-]
+dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0", "ruff>=0.15.21"]
 
 [project.scripts]
 # script entry-points

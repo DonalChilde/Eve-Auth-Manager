@@ -206,7 +206,7 @@ def test_display_writes_detailed_output_to_file(
         quiet=True,
     )
 
-    assert output_path.read_text(encoding="utf-8") == "# Detail\n\ncontent"
+    assert output_path.read_text(encoding="utf-8") == "# Detail\n\ncontent\n"
 
 
 def test_get_credentials_details_returns_single_entry_by_id(

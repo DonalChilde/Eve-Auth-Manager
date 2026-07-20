@@ -9,7 +9,6 @@ from typer import get_app_dir
 
 from pfmsoft.eve_auth_manager import (
     __app_name__,
-    __project_namespace__,
     __url__,
     __version__,
 )

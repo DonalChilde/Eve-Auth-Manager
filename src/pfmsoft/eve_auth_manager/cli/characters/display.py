@@ -8,12 +8,12 @@ from uuid import UUID
 
 import typer
 from mdformat import text as mdformat_text  # type: ignore
+from pfmsoft.eve_snippets import save_text_file
 from rich.console import Console
 from rich.markdown import Markdown
 
 from pfmsoft.eve_auth_manager.cli.helpers import get_auth_manager_settings_from_context
 from pfmsoft.eve_auth_manager.helpers.markdown_table import MarkdownTable
-from pfmsoft.eve_auth_manager.helpers.save_text_file import save_text_file
 from pfmsoft.eve_auth_manager.models import AuthorizedCharacter
 from pfmsoft.eve_auth_manager.sqlite.manager import SqliteAuthManager
 
@@ -158,8 +158,8 @@ def display(
         else:
             output_path = save_text_file(
                 text=output,
-                output_directory=file_path.parent,
-                file_name=file_path.name,
+                directory=file_path.parent,
+                filename=file_path.name,
                 overwrite=overwrite,
             )
             messenger.print(f"Output saved to {output_path}")

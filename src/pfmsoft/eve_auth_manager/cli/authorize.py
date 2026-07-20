@@ -5,6 +5,7 @@ from typing import Annotated, NotRequired, TypedDict
 from uuid import UUID
 
 import typer
+from pfmsoft.eve_snippets import save_text_file
 from pydantic import RootModel
 from rich.console import Console
 
@@ -12,7 +13,6 @@ from pfmsoft.eve_auth_manager.cli.helpers import (
     get_auth_manager_settings_from_context,
     get_stdin,
 )
-from pfmsoft.eve_auth_manager.helpers.save_text_file import save_text_file
 from pfmsoft.eve_auth_manager.models import AuthorizedDict, AuthorizedDictRoot
 from pfmsoft.eve_auth_manager.sqlite.manager import SqliteAuthManager
 
@@ -210,8 +210,8 @@ def authorize(
     else:
         out_path = save_text_file(
             text=authorized_root.model_dump_json(indent=indent),
-            output_directory=file_out.parent,
-            file_name=file_out.name,
+            directory=file_out.parent,
+            filename=file_out.name,
             overwrite=overwrite,
         )
         messenger.print(f"AuthorizedDict saved to {out_path}")
